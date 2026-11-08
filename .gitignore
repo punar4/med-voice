@@ -218,3 +218,10 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# --- Project: prescription-voice ---
+.env
+*.db
+node_modules/
+dist/
+__pycache__/

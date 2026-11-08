@@ -1,6 +1,6 @@
-# FREEBUFF_TASKS.md (v3) — Build instructions for the coding agent
+# FREEBUFF_TASKS.md (v4) — Build instructions for the coding agent
 
-Read this whole file before writing any code. Work through the tasks **in order, one at a time**. After each task, stop and report: files changed, how to run it, and how to check it works.
+Read this whole file before writing any code. Work through the tasks **in order, one at a time**. After each task, stop and report: files changed, how to run it, and how to check it works. Then write that task's entry in `docs/LEARN.md` (section 2b) before saying the task is done.
 
 ---
 
@@ -31,6 +31,30 @@ Built for the Gnani.ai Great Indian AI Internship Challenge. Must use Gnani **Pr
 6. **Never write Kannada (or any) answer text yourself.** Use template keys only. The human provides the template text.
 7. Keep dependencies minimal. Ask before adding anything not listed in section 3.
 8. Synthetic data only. No real names, phone numbers or prescriptions in seed data.
+9. **Explain your work.** The human is learning from this project. Every task ends with a `docs/LEARN.md` entry (section 2b). Keep it short and plain; no jargon without a one-line meaning.
+
+---
+
+## 2b. Learning log (`docs/LEARN.md`)
+
+Create `docs/LEARN.md` in T0. After **every** task, append one section in exactly this format:
+
+```markdown
+## T<n> — <task name>
+
+**What we built:** 2–3 plain sentences.
+
+**Files:**
+- `path/to/file` — one line: what it does and why it exists
+
+**How it fits:** 1–2 sentences on where this sits in the request flow (elder speaks → audio → Prisma → safety → intent → matching → answers → Timbre → log).
+
+**Key concepts (one line each):** e.g. "FastAPI route: a Python function that runs when a URL is called".
+
+**Later Learn:** 2–4 topics worth studying in depth after the contest, each with one line on why (e.g. "How MediaRecorder encodes audio — needed to debug format errors").
+```
+
+Rules for the log: no code dumps (point to files instead), no more than ~25 lines per task, plain English.
 
 ---
 
@@ -229,7 +253,7 @@ Create the file with these **keys** and English placeholder values marked `TODO_
 ## 10. Tasks (in order)
 
 ### T0 — Project setup  _(Sat 7 Nov)_
-- Create the folder structure, `requirements.txt`, Vite React TS app with Tailwind, `.gitignore` (include `.env`, `*.db`, `node_modules`, `dist`, `__pycache__`), `.env.example` with `GNANI_API_KEY=`, `GNANI_BASE_URL=`, `MOCK_GNANI=true`, `DATABASE_URL=sqlite:///./app.db`.
+- Create the folder structure, `docs/LEARN.md` (with the T0 entry), `requirements.txt`, Vite React TS app with Tailwind, `.gitignore` (include `.env`, `*.db`, `node_modules`, `dist`, `__pycache__`), `.env.example` with `GNANI_API_KEY=`, `GNANI_BASE_URL=`, `MOCK_GNANI=true`, `DATABASE_URL=sqlite:///./app.db`.
 - **Done when:** `uvicorn app.main:app --reload` serves `GET /api/health` → `{"ok": true}` and `npm run dev` shows a blank app.
 
 ### T1 — Gnani wrappers with mock mode  _(Sat 7 Nov)_

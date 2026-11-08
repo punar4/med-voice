@@ -1,0 +1,18 @@
+{
+  "when": "TODO_KN: {label} — take at {times}",
+  "how_many": "TODO_KN: {label} — {dose}",
+  "food": "TODO_KN: {label} — {food} food",
+  "purpose": "TODO_KN: {label} — {purpose}",
+  "days_left": "TODO_KN: {label} — {days} days left",
+  "clarify_which": "TODO_KN: which tablet? {options}",
+  "clarify_repeat": "TODO_KN: please say the tablet colour or name again",
+  "referral": "TODO_KN: please ask your doctor or pharmacist",
+  "emergency_108": "TODO_KN: call 108 now",
+  "error_try_again": "TODO_KN: please press the button and ask again",
+  "time_morning": "TODO_KN: morning",
+  "time_afternoon": "TODO_KN: afternoon",
+  "time_night": "TODO_KN: night",
+  "food_before": "TODO_KN: before",
+  "food_after": "TODO_KN: after",
+  "food_any": "TODO_KN: with or without"
+}
