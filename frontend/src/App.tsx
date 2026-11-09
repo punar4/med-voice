@@ -1,6 +1,8 @@
-// Routes and pages are added in later tasks (T3 caregiver setup, T5 elder page, T6 log).
+import CaregiverSetup from './pages/CaregiverSetup'
+
+// Routing arrives with the elder page (T5); for now the caregiver setup is the app.
 function App() {
-  return <main className="min-h-screen bg-white" />
+  return <CaregiverSetup />
 }
 
 export default App

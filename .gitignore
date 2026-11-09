@@ -228,3 +228,6 @@ __pycache__/
 
 test_audio/
 out.wav
+
+# The Python template below ignores every folder named lib/; the frontend source lives in one.
+!frontend/src/lib/

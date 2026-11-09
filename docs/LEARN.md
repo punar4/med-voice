@@ -102,3 +102,29 @@
 - `httpx` clients and connection reuse: why one shared client beats a call per request at scale.
 - Audio codecs and sample rates: why Prisma wants ≤30 s clips and why we ask Timbre for 24 kHz.
 - Retries with backoff for 429/5xx: when retrying is safe and when it double-charges.
+
+## T3 — Caregiver setup (API + UI)
+
+**What we built:** The caregiver's screen and the routes behind it: create a profile, add a medicine, edit it, confirm it, delete it. A medicine starts unconfirmed and an edit un-confirms it again, so the elder only ever hears about details the caregiver has checked. The page shows the elder link with a copy button, and unconfirmed rows are marked amber.
+
+**Files:**
+- `backend/app/main.py` — the six profile/medicine routes plus two input models; `confirmed` is never accepted from the browser, only set by the confirm route.
+- `frontend/src/lib/api.ts` — typed client for those routes, with one place that turns an HTTP failure into a readable message.
+- `frontend/src/pages/CaregiverSetup.tsx` — create profile, add/edit form with every section-5 field, medicine list with Confirm/Edit/Delete, elder link and copy button.
+- `frontend/src/App.tsx` — shows the caregiver page; real routing arrives with the elder page in T5.
+- `frontend/vite.config.ts` — dev-only proxy: `/api` calls from port 5173 go to the backend on 8000, so the same relative URLs work when deployed.
+- `.gitignore` — un-ignores `frontend/src/lib/`, which the Python template's `lib/` rule was silently hiding from git.
+
+**How it fits:** This fills the tables that step 5 (matching) may read: only rows with `confirmed = true` are ever candidates, so the caregiver's Confirm button is the gate on every spoken answer.
+
+**Key concepts (one line each):**
+- Input model (Pydantic): declares the fields and limits of a request body; wrong values get a 422 instead of reaching the database.
+- PUT vs POST: POST creates a row, PUT replaces one that already exists.
+- Un-confirm on edit: changing a dose invalidates an older "yes", so trust must be given again.
+- Dev proxy: makes the frontend and backend look like one origin locally, so no CORS settings are needed.
+- `localStorage`: remembers which profile this browser is editing; it is convenience, not security.
+
+**Later Learn:**
+- Share-token design: why a long random link is enough here and what login would add.
+- Multipart file upload for pill photos, and where those files should live in deployment.
+- Optimistic UI updates and lost-update conflicts when two tabs edit the same medicine.
