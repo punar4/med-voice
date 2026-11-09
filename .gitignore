@@ -225,3 +225,5 @@ __marimo__/
 node_modules/
 dist/
 __pycache__/
+
+test_audio/

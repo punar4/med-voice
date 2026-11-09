@@ -51,3 +51,28 @@
 - Gnani Prisma and Timbre request formats — needed before real mode can replace the mocks.
 - Audio streaming vs whole-file upload: why phones send a completed clip and how large that can get.
 - Why mock data and real data must never mix in one database — protects the safety rules in T4.
+
+## T2 — Database and models
+
+**What we built:** The three real tables from section 5: `Profile` (one elder), `Medicine` (rows the caregiver enters) and `QuestionLog` (every question, filled in T4). `db.py` connects using `DATABASE_URL` and the app creates any missing tables on startup. A seed script adds one synthetic profile with three medicines — two confirmed, one left unconfirmed on purpose.
+
+**Files:**
+- `backend/app/models.py` — the three tables with every field from section 5; `aliases` and `times` are JSON columns so SQLite and Postgres behave the same; `share_token` gets a random value automatically.
+- `backend/app/db.py` — the engine, `init_db()` to create tables, and `get_session()` as a FastAPI dependency (one session per request).
+- `backend/app/main.py` — creates tables on startup and adds `GET /api/profiles/{id}`, which returns the profile plus all medicines or 404.
+- `backend/seed.py` — inserts the synthetic profile and medicines; safe to re-run, it does nothing if the profile already exists.
+- `backend/requirements.txt` — adds `pytest` (approved by the human).
+
+**How it fits:** Steps 3–8 of the flow read and write these tables: matching only sees confirmed medicines, and every `/ask` writes one `QuestionLog` row.
+
+**Key concepts (one line each):**
+- ORM: a Python class per table, so you write objects instead of SQL strings.
+- Foreign key: `Medicine.profile_id` points at a `Profile` row, so medicines belong to one elder.
+- Dependency: `Depends(get_session)` hands the route a session and closes it afterwards, even on error.
+- `create_all`: creates tables that are missing, but never changes a table that already exists.
+- Idempotent script: running it twice leaves the same result, which makes it safe to re-run.
+
+**Later Learn:**
+- Migrations (Alembic): why `create_all` is enough today but loses data-safe column changes later.
+- Postgres index types: how `share_token` lookups stay fast as profiles grow.
+- Transactions: why a half-saved profile would be worse than no profile at all.
