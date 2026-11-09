@@ -26,3 +26,28 @@
 - FastAPI dependencies: how shared objects like DB sessions are injected into routes — needed in T2.
 - Vite dev vs production build: why dev serves source files but deploy serves `frontend/dist` — needed in T8.
 - Why secret files stay out of git history: what to do if a key is ever committed.
+
+## T1 — Gnani wrappers with mock mode
+
+**What we built:** Two functions that stand in for Gnani's cloud speech services: `transcribe()` turns recorded audio into text, `synthesize()` turns text into audio bytes. While `MOCK_GNANI=true` neither touches the network — speech to text returns one fixed test sentence and text to speech returns half a second of silence as a real WAV file — so the whole app can be built without credits or an API key. Real mode exists only as a clear error, because the Gnani request format is not known yet.
+
+**Files:**
+- `backend/app/gnani/stt.py` — `transcribe(audio_bytes, lang)`; mock returns the fixed transcript, real mode raises with a `TODO(gnani-docs)` note.
+- `backend/app/gnani/tts.py` — `synthesize(text, lang)`; mock builds a silent 16 kHz mono WAV with the stdlib `wave` module, so no new dependency.
+- `backend/app/gnani/__init__.py` — `GnaniNotConfigured`, one shared error so the pipeline can say "not ready" cleanly in T4.
+- `backend/app/config.py` — adds `MOCK_STT_TRANSCRIPT`, the test question; change it in `.env` to try a different one.
+- `backend/tests/test_gnani_mock.py` — four checks that both functions return usable results.
+- `backend/tests/__init__.py` — empty, only so `unittest` can import the tests folder.
+
+**How it fits:** The two ends of the flow: mic audio goes into Prisma (step 2) and answer audio comes out of Timbre (step 7). Everything between them is still stubs.
+
+**Key concepts (one line each):**
+- Mock mode: a fake but correctly-shaped implementation, so callers are written and tested before the real service is available.
+- WAV file: a 44-byte header plus raw samples; ours is 16-bit mono, so every zero byte means silence.
+- Config flag: one setting (`MOCK_GNANI`) switches the whole app between fake and real without code changes.
+- Unit test: a small program that calls your code and fails loudly if the result is wrong.
+
+**Later Learn:**
+- Gnani Prisma and Timbre request formats — needed before real mode can replace the mocks.
+- Audio streaming vs whole-file upload: why phones send a completed clip and how large that can get.
+- Why mock data and real data must never mix in one database — protects the safety rules in T4.
