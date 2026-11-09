@@ -1,4 +1,4 @@
-"""Prisma (Gnani) speech-to-text wrapper: transcribe(audio_bytes, lang) -> str.
+"""Prisma (Gnani) speech-to-text wrapper: transcribe(audio_bytes, lang, filename) -> str.
 
 Mock mode (MOCK_GNANI=true) returns a fixed test transcript so the rest of the
 app can be built without spending credits. Real mode posts the clip to
@@ -7,6 +7,8 @@ app can be built without spending credits. Real mode posts the clip to
 Prisma accepts WAV, MP3, OGG, FLAC, AAC and M4A, up to 30 seconds. An empty
 transcript means "no speech" and is returned as an empty string, not an error.
 """
+
+import mimetypes
 
 import httpx
 
@@ -20,17 +22,34 @@ from . import (
 )
 
 ENDPOINT = "/stt/v3"
+DEFAULT_FILENAME = "audio.wav"
+DEFAULT_CONTENT_TYPE = "audio/wav"
+
+
+def _upload_part(audio_bytes: bytes, filename: str | None) -> tuple[str, bytes, str]:
+    """Build the multipart part, naming and typing the file as it really is.
+
+    Prisma trusts the file name/type over the bytes: an M4A clip labelled
+    .wav fails with `AUDIO_CONVERSION_ERROR` ("invalid start code in RIFF
+    header"), so callers should pass the real file name.
+    """
+    if filename is None:
+        return DEFAULT_FILENAME, audio_bytes, DEFAULT_CONTENT_TYPE
+    content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+    return filename, audio_bytes, content_type
 
 
 def transcribe(
     audio_bytes: bytes,
     lang: str = "kn",
     keyterms: list[str] | None = None,
+    filename: str | None = None,
 ) -> str:
     """Turn recorded audio into text the elder said, in the given language.
 
     `keyterms` (medicine names to bias recognition) is accepted for a later
-    tuning step but is not sent yet.
+    tuning step but is not sent yet. `filename` names the uploaded file so
+    Prisma detects the real format; pass the name of the clip you read.
     """
     if config.MOCK_GNANI:
         return config.MOCK_STT_TRANSCRIPT
@@ -40,7 +59,7 @@ def transcribe(
         response = httpx.post(
             f"{base_url}{ENDPOINT}",
             headers={"X-API-Key-ID": api_key},
-            files={"audio_file": ("audio.wav", audio_bytes, "audio/wav")},
+            files={"audio_file": _upload_part(audio_bytes, filename)},
             data={
                 "language_code": language_code(lang),
                 "model": config.GNANI_STT_MODEL,

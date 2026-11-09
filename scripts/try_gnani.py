@@ -39,7 +39,9 @@ def main() -> int:
         return 2
 
     try:
-        transcript = stt.transcribe(clip.read_bytes(), "kn")
+        # Pass the real file name: Prisma rejects a clip whose name lies about
+        # its format (an M4A labelled .wav fails to convert).
+        transcript = stt.transcribe(clip.read_bytes(), "kn", filename=clip.name)
         print(f"Prisma transcript: {transcript!r}" if transcript else "Prisma: no speech detected")
 
         speech = tts.synthesize(TEST_SENTENCE, "kn")
