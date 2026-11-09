@@ -32,12 +32,43 @@ COLOUR_WORDS = {
 }
 
 
+# Words that mean "tablet/medicine" in general. Almost every question and many
+# labels contain one, so they are removed before scoring; otherwise "ಈ ಬಿಳಿ
+# ಮಾತ್ರೆ" scores ~91 against the alias "ಬಿಪಿ ಮಾತ್ರೆ" and two different tablets
+# look tied. A field made only of these words is kept as-is.
+GENERIC_WORDS = frozenset(
+    normalise(word)
+    for word in (
+        "ಮಾತ್ರೆ", "ಮಾತ್ರೆಯ", "ಮಾತ್ರೆಗಳು", "ಗುಳಿಗೆ", "ಟ್ಯಾಬ್ಲೆಟ್", "ಟ್ಯಾಬ್ಲೆಟ್ಸ್", "ಕ್ಯಾಪ್ಸೂಲ್",
+        "maatre", "matre", "tablet", "tablets", "pill", "pills", "capsule",
+    )
+)
+
+
+def _without_generic(text: str) -> str:
+    kept = [word for word in text.split() if word not in GENERIC_WORDS]
+    return " ".join(kept) if kept else text
+
+
+def with_colour_alias(aliases: list[str], color_word: str) -> list[str]:
+    """Add the Roman form of a Kannada colour word to the aliases, once."""
+    roman = COLOUR_WORDS.get((color_word or "").strip())
+    cleaned = [alias.strip() for alias in aliases if alias and alias.strip()]
+    if roman and roman not in (alias.lower() for alias in cleaned):
+        cleaned.append(roman)
+    return cleaned
+
+
 @dataclass(frozen=True)
 class MatchResult:
     """One medicine, an ambiguous shortlist, or neither."""
 
     medicine: Medicine | None = None
     candidates: tuple[Medicine, ...] = field(default_factory=tuple)
+    # The elder named a colour that no confirmed medicine has ("the orange
+    # tablet"): that tablet is not on the confirmed list, so nothing may be
+    # answered about it, not even via the one-medicine fallback.
+    unlisted: bool = False
 
     @property
     def ambiguous(self) -> bool:
@@ -48,18 +79,57 @@ class MatchResult:
         return self.medicine is not None
 
 
-def _fields(medicine: Medicine) -> list[str]:
+def _fields(medicine: Medicine, *, with_colour: bool = True) -> list[str]:
     """Every way the elder might refer to this medicine, normalised."""
-    values = [medicine.name, medicine.label, medicine.color_word, *medicine.aliases]
-    return [value for value in (normalise(item) for item in values if item) if value]
+    values = [medicine.name, medicine.label, *medicine.aliases]
+    if with_colour:
+        values.append(medicine.color_word)
+    return [
+        _without_generic(value)
+        for value in (normalise(item) for item in values if item)
+        if value
+    ]
+
+
+def _best(text: str, values: list[str]) -> float:
+    return max((partial_ratio(value, text) for value in values), default=0.0)
 
 
 def score(transcript: str, medicine: Medicine) -> float:
     """How close the (already normalised) transcript is to this medicine."""
-    return max(
-        (partial_ratio(value, transcript) for value in _fields(medicine)),
-        default=0.0,
-    )
+    return _best(transcript, _fields(medicine))
+
+
+def _scores(text: str, medicine: Medicine) -> tuple[float, float]:
+    """(best over all fields, best ignoring the colour word).
+
+    Two white tablets both score 100 on "ಬಿಳಿ"; the second number lets
+    "ದೊಡ್ಡ ಬಿಳಿ" (the big white one) pick the right tablet by its label.
+    """
+    return _best(text, _fields(medicine)), _best(text, _fields(medicine, with_colour=False))
+
+
+def _colours_in(text: str) -> set[str]:
+    """Kannada colour words mentioned in the text (Kannada or Roman spelling)."""
+    words = set(text.split())
+    return {
+        kannada
+        for kannada, roman in COLOUR_WORDS.items()
+        if normalise(kannada) in text or roman in words
+    }
+
+
+def _close(a: tuple[float, float], b: tuple[float, float]) -> bool:
+    """Too close to call: neither number separates them.
+
+    The label-only number counts only when it is a real match (>= MIN_SCORE);
+    a weak 75 vs 57 is noise, not a reason to pick one white tablet over another.
+    """
+    if a[0] - b[0] >= MIN_MARGIN:
+        return False
+    if a[1] >= MIN_SCORE and a[1] - b[1] >= MIN_MARGIN:
+        return False
+    return True
 
 
 def match(transcript: str, medicines: list[Medicine]) -> MatchResult:
@@ -69,30 +139,32 @@ def match(transcript: str, medicines: list[Medicine]) -> MatchResult:
     if not confirmed:
         return MatchResult()
 
-    text = normalise(transcript)
+    text = _without_generic(normalise(transcript))
     if not text:
         return MatchResult()
 
     scored = sorted(
-        ((score(text, medicine), medicine) for medicine in confirmed),
+        ((_scores(text, medicine), medicine) for medicine in confirmed),
         key=lambda item: item[0],
         reverse=True,
     )
-    top_score, top_medicine = scored[0]
+    top, top_medicine = scored[0]
 
-    if top_score < MIN_SCORE:
+    known_colours = {medicine.color_word for medicine in confirmed}
+    unlisted = bool(_colours_in(text) - known_colours)
+
+    if top[0] < MIN_SCORE:
+        if unlisted:
+            return MatchResult(unlisted=True)
         # Section 8: with exactly one confirmed medicine, anything is about it.
         if len(confirmed) == 1:
             return MatchResult(medicine=confirmed[0])
         return MatchResult()
 
-    second_score = scored[1][0] if len(scored) > 1 else 0.0
-    if second_score >= MIN_SCORE and top_score - second_score < MIN_MARGIN:
-        tied = tuple(
-            medicine
-            for value, medicine in scored
-            if value >= MIN_SCORE and top_score - value < MIN_MARGIN
-        )
+    tied = tuple(
+        medicine for value, medicine in scored if value[0] >= MIN_SCORE and _close(top, value)
+    )
+    if len(tied) > 1:
         return MatchResult(candidates=tied)
 
     return MatchResult(medicine=top_medicine)

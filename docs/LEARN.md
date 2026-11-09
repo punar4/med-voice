@@ -128,3 +128,38 @@
 - Share-token design: why a long random link is enough here and what login would add.
 - Multipart file upload for pill photos, and where those files should live in deployment.
 - Optimistic UI updates and lost-update conflicts when two tabs edit the same medicine.
+
+## T4 — Core logic + /ask pipeline
+
+**What we built:** The app's brain. A spoken question becomes text (Prisma), is checked for emergencies first, then sorted into a question type (when / how many / food / why / days left) and matched to one of the elder's *confirmed* tablets. The answer is a fixed Kannada sentence filled with the caregiver's confirmed details, spoken back by Timbre, and every question is logged for the caregiver. When unsure, it asks back once, then says "ask your doctor".
+
+**Files:**
+- `backend/app/core/safety.py` — emergency phrases (spoken Kannada, English-in-Kannada-script, Kanglish, English), word-pair rules (chest + pain, breath + difficulty, tablets + too many + took) and a fuzzy fallback. Always runs first.
+- `backend/app/core/intent.py` — keyword lists per question type, checked in priority order, then a fuzzy pass; time-of-day words are a last-resort WHEN.
+- `backend/app/core/matching.py` — fuzzy match against confirmed tablets only; ignores generic words like ಮಾತ್ರೆ; breaks ties between same-coloured tablets by their label; refuses to answer about a colour no confirmed tablet has.
+- `backend/app/core/answers.py` — loads `templates/kn.json` and fills placeholders; joins times naturally; unknown keys raise instead of inventing text.
+- `backend/app/core/pipeline.py` — `decide()` (pure rules, unit-tested) and `run()` (Prisma → decide → Timbre → QuestionLog).
+- `backend/app/audio.py` — detects the real audio format from its first bytes; converts browser WebM to 16 kHz WAV with ffmpeg.
+- `backend/app/gnani/stt.py` — sends the elder's medicine words as Prisma `keyterms`; retries without them on `INVALID_CONTEXT`.
+- `backend/app/main.py` — `GET /api/elder/{token}`, `POST /api/elder/{token}/ask`, `GET /api/profiles/{id}/log`; saving a medicine adds the Roman colour alias.
+- `frontend/src/pages/CaregiverSetup.tsx` — colour word is now a Kannada dropdown; Kannada placeholders.
+- `backend/seed.py` — Kannada labels; two white tablets on purpose (to demo "which tablet?").
+- `backend/tests/` — 60 tests incl. every case in T4_INPUTS_v4.
+
+**How it fits:** This is the middle of the flow: elder speaks → audio → Prisma → **safety → intent → matching → answers** → Timbre → log. T5 (elder page) calls `/ask`; T6 (caregiver log) reads `/log`.
+
+**Key concepts (one line each):**
+- Rules before AI: deterministic keyword rules decide; nothing generates medical text.
+- Fail safe: an unclear question gets one ask-back, then "ask your doctor"; a false emergency alarm is acceptable, a missed one is not.
+- Pure function + thin wrapper: `decide()` has no I/O, so every rule is testable in milliseconds.
+- Fuzzy matching (`rapidfuzz.partial_ratio`): scores 0–100 how well a short string appears inside a longer one.
+- Magic numbers in files: the first bytes (RIFF, OggS, 1A45DFA3…) say what the audio really is, whatever its name.
+- Follow-ups: the last log row within 120 s carries context ("ಯಾವಾಗ?" after "which tablet?").
+
+**Outcomes `/ask` can return (for T5/T6):** `answered`, `clarify_which`, `clarify_question`, `clarify_repeat`, `referral`, `emergency`, `error`. The response also has `audio_error: true` if Timbre failed; the text answer is still shown.
+
+**Later Learn:**
+- How partial_ratio works on Kannada (code points vs letters) and why short words need exact matches.
+- Why "ದಿನ" alone was a bad DAYS_LEFT keyword ("ದಿನಕ್ಕೆ ಎಷ್ಟು" = per day) — keyword design pitfalls.
+- ffmpeg pipes (`pipe:0` / `pipe:1`) and why M4A can't always be read from a pipe.
+- Evaluating safety rules: precision vs recall, and building a test set of real transcripts.

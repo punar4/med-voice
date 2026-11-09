@@ -15,7 +15,9 @@ from sqlmodel import Session, select
 from app import db
 from app.models import Medicine, Profile
 
-SEED_ELDER_NAME = "Synthetic Elder"
+# Renamed in T4 when labels moved to Kannada script, so a fresh seed is created
+# even if the older English seed is already in app.db.
+SEED_ELDER_NAME = "Synthetic Elder (kn)"
 SEED_DAYS_AGO = 5
 
 
@@ -43,24 +45,24 @@ def main() -> None:
             Medicine(
                 profile_id=profile.id,
                 name="Amlodipine 5mg",
-                aliases=["BP tablet", "amlo"],
-                label="white round tablet",
-                color_word="bili",
-                dose="1 tablet",
+                aliases=["BP tablet", "ಬಿಪಿ ಮಾತ್ರೆ", "amlo", "bili"],
+                label="ಬಿಳಿ ಗುಂಡು ಮಾತ್ರೆ",
+                color_word="ಬಿಳಿ",
+                dose="1 ಮಾತ್ರೆ",
                 times=["morning"],
                 food="after",
                 days_total=30,
                 start_date=start,
-                purpose="BP",
+                purpose="ಬಿಪಿ ಮಾತ್ರೆ",
                 confirmed=True,
             ),
             Medicine(
                 profile_id=profile.id,
                 name="Metformin 500mg",
-                aliases=["sugar tablet", "metfor"],
-                label="big white tablet",
-                color_word="bili",
-                dose="1 tablet",
+                aliases=["sugar tablet", "ಶುಗರ್ ಮಾತ್ರೆ", "metfor", "bili"],
+                label="ದೊಡ್ಡ ಬಿಳಿ ಮಾತ್ರೆ",
+                color_word="ಬಿಳಿ",
+                dose="1 ಮಾತ್ರೆ",
                 times=["morning", "night"],
                 food="after",
                 days_total=60,
@@ -71,10 +73,10 @@ def main() -> None:
             Medicine(
                 profile_id=profile.id,
                 name="Paracetamol 650mg",
-                aliases=["fever tablet"],
-                label="long white tablet",
-                color_word="bili",
-                dose="1 tablet",
+                aliases=["fever tablet", "ಜ್ವರದ ಮಾತ್ರೆ", "kittale"],
+                label="ಉದ್ದ ಕಿತ್ತಳೆ ಮಾತ್ರೆ",
+                color_word="ಕಿತ್ತಳೆ",
+                dose="1 ಮಾತ್ರೆ",
                 times=["night"],
                 food="any",
                 confirmed=False,  # the elder side must never see this one

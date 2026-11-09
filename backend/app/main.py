@@ -4,11 +4,14 @@ from contextlib import asynccontextmanager
 from datetime import date
 from typing import Literal
 
-from fastapi import Depends, FastAPI, HTTPException, Response
+from fastapi import Depends, FastAPI, File, HTTPException, Response, UploadFile
 from pydantic import BaseModel, ConfigDict, Field
 from sqlmodel import Session, select
 
 from . import db, models
+from .audio import MAX_UPLOAD_BYTES
+from .core import pipeline
+from .core.matching import with_colour_alias
 
 
 @asynccontextmanager
@@ -104,7 +107,9 @@ def add_medicine(
 ) -> models.Medicine:
     """Add a medicine for this profile. It starts unconfirmed, so the elder cannot see it yet."""
     _get_profile(session, profile_id)
-    medicine = models.Medicine(profile_id=profile_id, confirmed=False, **payload.model_dump())
+    data = payload.model_dump()
+    data["aliases"] = with_colour_alias(data["aliases"], data["color_word"])
+    medicine = models.Medicine(profile_id=profile_id, confirmed=False, **data)
     return _save(session, medicine)
 
 
@@ -116,7 +121,9 @@ def update_medicine(
 ) -> models.Medicine:
     """Replace a medicine's details and un-confirm it: an edited field must be re-checked."""
     medicine = _get_medicine(session, medicine_id)
-    for field, value in payload.model_dump().items():
+    data = payload.model_dump()
+    data["aliases"] = with_colour_alias(data["aliases"], data["color_word"])
+    for field, value in data.items():
         setattr(medicine, field, value)
     medicine.confirmed = False
     return _save(session, medicine)
@@ -137,3 +144,64 @@ def delete_medicine(medicine_id: int, session: Session = Depends(db.get_session)
     session.delete(medicine)
     session.commit()
     return Response(status_code=204)
+
+
+@app.get("/api/profiles/{profile_id}/log")
+def question_log(profile_id: int, session: Session = Depends(db.get_session)) -> list[models.QuestionLog]:
+    """Caregiver view: what the elder asked and what they were told, newest first."""
+    _get_profile(session, profile_id)
+    return list(
+        session.exec(
+            select(models.QuestionLog)
+            .where(models.QuestionLog.profile_id == profile_id)
+            .order_by(models.QuestionLog.created_at.desc(), models.QuestionLog.id.desc())
+            .limit(200)
+        ).all()
+    )
+
+
+def _get_elder_profile(session: Session, token: str) -> models.Profile:
+    profile = session.exec(select(models.Profile).where(models.Profile.share_token == token)).first()
+    if profile is None:
+        raise HTTPException(status_code=404, detail="link not found")
+    return profile
+
+
+@app.get("/api/elder/{token}")
+def elder_view(token: str, session: Session = Depends(db.get_session)) -> dict:
+    """Elder page data: language plus confirmed medicines' labels and photos only."""
+    profile = _get_elder_profile(session, token)
+    medicines = session.exec(
+        select(models.Medicine).where(
+            models.Medicine.profile_id == profile.id,
+            models.Medicine.confirmed == True,  # noqa: E712
+        )
+    ).all()
+    return {
+        "language": profile.language,
+        "medicines": [
+            {"label": medicine.label, "photo_url": medicine.photo_path} for medicine in medicines
+        ],
+    }
+
+
+@app.post("/api/elder/{token}/ask")
+async def elder_ask(
+    token: str,
+    audio: UploadFile = File(...),
+    session: Session = Depends(db.get_session),
+) -> dict:
+    """One spoken question in, one spoken answer out (see core/pipeline.py)."""
+    profile = _get_elder_profile(session, token)
+    data = await audio.read(MAX_UPLOAD_BYTES + 1)
+    if len(data) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="recording is too large")
+    result = pipeline.run(session, profile, data)
+    return {
+        "transcript": result.transcript,
+        "outcome": result.outcome,
+        "answer_text": result.answer_text,
+        "audio_base64": result.audio_base64,
+        "medicine": result.medicine,
+        "audio_error": result.audio_error,
+    }

@@ -36,6 +36,8 @@ def _number(name: str, default: float) -> float:
 
 GNANI_STT_MODEL = os.getenv("GNANI_STT_MODEL", "prisma-v3.0")
 GNANI_STT_FORMAT = os.getenv("GNANI_STT_FORMAT", "codemix")
+# Send the elder's confirmed medicine words as Prisma `keyterms` (prisma-v3.0 only).
+GNANI_STT_KEYTERMS = _flag("GNANI_STT_KEYTERMS", "true")
 GNANI_TTS_MODEL = os.getenv("GNANI_TTS_MODEL", "timbre-v2.5")
 GNANI_TTS_VOICE = os.getenv("GNANI_TTS_VOICE", "Saanvi")
 GNANI_TTS_SPEED = _number("GNANI_TTS_SPEED", 0.9)

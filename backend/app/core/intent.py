@@ -27,28 +27,32 @@ INTENT_KEYWORDS = (
     (
         DAYS_LEFT,
         (
-            # Kannada
+            # Kannada. A bare "ದಿನ" is deliberately NOT a keyword: it also
+            # appears in "ದಿನಕ್ಕೆ ಎಷ್ಟು ಮಾತ್ರೆ" (how many per day) and in
+            # symptoms like "ಎರಡು ದಿನದಿಂದ ಜ್ವರ" (fever for two days).
             "ಎಷ್ಟ್ ದಿನ",
             "ಎಷ್ಟು ದಿನ",
             "ಇನ್ನೆಷ್ಟು ದಿನ",
             "ಇನ್ನೂ ಎಷ್ಟ್",
+            "ಇನ್ನೂ ಎಷ್ಟು",
             "ಎಷ್ಟು ದಿವಸ",
-            "ದಿನ",
-            "ದಿವಸ",
+            "ಎಷ್ಟ್ ದಿವಸ",
+            "ದಿನ ಬಾಕಿ",
+            "ದಿನ ಉಳಿ",
             "ಮುಗೀತು",
             "ಮುಗಿಯುತ್ತೆ",
             "ಮುಗಿ",
             "ಎಲ್ಲಿವರೆಗೂ",
+            "ಎಲ್ಲಿವರೆಗೆ",
             # Kanglish
             "eshtu dina",
             "esht dina",
             "innestu dina",
-            "dina",
-            "divasa",
+            "eshtu divasa",
             "mugi",
             # English
             "how many days",
-            "days",
+            "days left",
             "how long",
             "finish",
         ),
@@ -146,6 +150,27 @@ INTENT_KEYWORDS = (
             "what is it for",
         ),
     ),
+    (
+        # Last resort for WHEN: a bare time of day ("ರಾತ್ರಿ ತಗೋಬೇಕಾ?" = "should I
+        # take it at night?"). Checked after every other intent, so "ರಾತ್ರಿ ಎಷ್ಟು"
+        # still counts as HOW_MANY. The WHEN answer lists all the times, which
+        # answers the yes/no question too.
+        WHEN,
+        (
+            "ಬೆಳಿಗ್ಗೆ",
+            "ಬೆಳಗ್ಗೆ",
+            "ಮಧ್ಯಾಹ್ನ",
+            "ಸಂಜೆ",
+            "ರಾತ್ರಿ",
+            "beligge",
+            "madhyana",
+            "raatri",
+            "rathri",
+            "morning",
+            "afternoon",
+            "night",
+        ),
+    ),
 )
 
 # Normalised once at import so every request compares like with like.
@@ -155,7 +180,7 @@ _KEYWORDS = tuple(
 )
 
 # The order T4_INPUTS asks for, exposed so tests and later code read the same list.
-INTENTS = tuple(intent for intent, _ in INTENT_KEYWORDS)
+INTENTS = tuple(dict.fromkeys(intent for intent, _ in INTENT_KEYWORDS))
 
 
 def _exact(text: str, keywords: tuple[str, ...]) -> bool:

@@ -56,6 +56,8 @@ class QuestionLog(SQLModel, table=True):
     transcript: str
     intent: str
     medicine_id: Optional[int] = Field(default=None, foreign_key="medicine.id")
-    outcome: str  # "answered" | "clarify" | "referral" | "emergency"
+    # "answered" | "clarify_which" | "clarify_question" | "clarify_repeat"
+    # | "referral" | "emergency" | "error"  (see core/pipeline.py)
+    outcome: str
     answer_key: str
     answer_text: str

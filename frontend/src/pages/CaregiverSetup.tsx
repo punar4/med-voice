@@ -19,6 +19,20 @@ const TIMES: { value: TimeOfDay; label: string }[] = [
   { value: 'night', label: 'Night' },
 ]
 
+// Colour words are stored in Kannada script because Prisma writes the elder's
+// speech in Kannada script; the backend adds the Roman form as an alias.
+const COLOURS: { value: string; label: string }[] = [
+  { value: 'ಬಿಳಿ', label: 'ಬಿಳಿ (white)' },
+  { value: 'ಹಳದಿ', label: 'ಹಳದಿ (yellow)' },
+  { value: 'ಕೆಂಪು', label: 'ಕೆಂಪು (red)' },
+  { value: 'ನೀಲಿ', label: 'ನೀಲಿ (blue)' },
+  { value: 'ಹಸಿರು', label: 'ಹಸಿರು (green)' },
+  { value: 'ಕಿತ್ತಳೆ', label: 'ಕಿತ್ತಳೆ (orange)' },
+  { value: 'ಗುಲಾಬಿ', label: 'ಗುಲಾಬಿ (pink)' },
+  { value: 'ಕಪ್ಪು', label: 'ಕಪ್ಪು (black)' },
+  { value: 'ಕಂದು', label: 'ಕಂದು (brown)' },
+]
+
 const FOODS: { value: Food; label: string }[] = [
   { value: 'before', label: 'Before food' },
   { value: 'after', label: 'After food' },
@@ -311,7 +325,7 @@ export default function CaregiverSetup() {
                 value={draft.aliases}
                 onChange={(event) => setDraft({ ...draft, aliases: event.target.value })}
                 className={inputClass}
-                placeholder="BP tablet, amlo"
+                placeholder="BP tablet, ಬಿಪಿ ಮಾತ್ರೆ, amlo"
               />
               <p className="mt-1 text-xs text-slate-500">Separate with commas.</p>
             </div>
@@ -326,22 +340,35 @@ export default function CaregiverSetup() {
                 value={draft.label}
                 onChange={(event) => setDraft({ ...draft, label: event.target.value })}
                 className={inputClass}
-                placeholder="white round tablet"
+                placeholder="ಬಿಳಿ ಗುಂಡು ಮಾತ್ರೆ"
               />
+              <p className="mt-1 text-xs text-slate-500">In Kannada, the way the elder says it.</p>
             </div>
 
             <div>
               <label className={labelClass} htmlFor="med-color">
                 Colour word
               </label>
-              <input
+              <select
                 id="med-color"
                 required
                 value={draft.color_word}
                 onChange={(event) => setDraft({ ...draft, color_word: event.target.value })}
                 className={inputClass}
-                placeholder="bili"
-              />
+              >
+                <option value="" disabled>
+                  Choose the tablet's colour
+                </option>
+                {COLOURS.map((colour) => (
+                  <option key={colour.value} value={colour.value}>
+                    {colour.label}
+                  </option>
+                ))}
+                {draft.color_word !== '' && !COLOURS.some((colour) => colour.value === draft.color_word) && (
+                  // An older free-text value (e.g. "bili") stays selectable until changed.
+                  <option value={draft.color_word}>{draft.color_word}</option>
+                )}
+              </select>
             </div>
 
             <div>
@@ -354,7 +381,7 @@ export default function CaregiverSetup() {
                 value={draft.dose}
                 onChange={(event) => setDraft({ ...draft, dose: event.target.value })}
                 className={inputClass}
-                placeholder="1 tablet"
+                placeholder="1 ಮಾತ್ರೆ"
               />
             </div>
 
@@ -430,8 +457,9 @@ export default function CaregiverSetup() {
                 value={draft.purpose}
                 onChange={(event) => setDraft({ ...draft, purpose: event.target.value })}
                 className={inputClass}
-                placeholder="blood pressure"
+                placeholder="ಬಿಪಿ ಮಾತ್ರೆ"
               />
+              <p className="mt-1 text-xs text-slate-500">Spoken as "ಇದು …", so write it to fit that sentence.</p>
             </div>
 
             <div>

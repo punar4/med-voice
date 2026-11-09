@@ -5,3 +5,4 @@ sqlmodel
 rapidfuzz
 pytest
 httpx
+python-multipart

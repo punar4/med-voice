@@ -8,12 +8,15 @@ Prisma accepts WAV, MP3, OGG, FLAC, AAC and M4A, up to 30 seconds. An empty
 transcript means "no speech" and is returned as an empty string, not an error.
 """
 
+import json
+import logging
 import mimetypes
 
 import httpx
 
 from .. import config
 from . import (
+    GnaniAPIError,
     REQUEST_TIMEOUT_SECONDS,
     error_from_response,
     language_code,
@@ -21,9 +24,17 @@ from . import (
     require_settings,
 )
 
+logger = logging.getLogger(__name__)
+
 ENDPOINT = "/stt/v3"
 DEFAULT_FILENAME = "audio.wav"
 DEFAULT_CONTENT_TYPE = "audio/wav"
+
+# Docs: keyterms work only on prisma-v3.0, up to 200 entries; more returns
+# 400 INVALID_CONTEXT. We cap well below that.
+KEYTERMS_MODEL = "prisma-v3.0"
+MAX_KEYTERMS = 100
+INVALID_CONTEXT = "INVALID_CONTEXT"
 
 
 def _upload_part(audio_bytes: bytes, filename: str | None) -> tuple[str, bytes, str]:
@@ -47,24 +58,46 @@ def transcribe(
 ) -> str:
     """Turn recorded audio into text the elder said, in the given language.
 
-    `keyterms` (medicine names to bias recognition) is accepted for a later
-    tuning step but is not sent yet. `filename` names the uploaded file so
-    Prisma detects the real format; pass the name of the clip you read.
+    `keyterms` (the elder's medicine words) bias recognition towards those
+    words; they are sent only on prisma-v3.0 with GNANI_STT_KEYTERMS on, and if
+    Prisma rejects them (400 INVALID_CONTEXT) the call is retried once without.
+    `filename` names the uploaded file so Prisma detects the real format.
     """
     if config.MOCK_GNANI:
         return config.MOCK_STT_TRANSCRIPT
 
+    terms = _keyterms(keyterms)
+    try:
+        return _call(audio_bytes, lang, filename, terms)
+    except GnaniAPIError as exc:
+        if terms and exc.status_code == 400 and exc.error_type == INVALID_CONTEXT:
+            logger.warning("Prisma rejected keyterms (INVALID_CONTEXT); retrying without them")
+            return _call(audio_bytes, lang, filename, None)
+        raise
+
+
+def _keyterms(keyterms: list[str] | None) -> list[str] | None:
+    if not keyterms or not config.GNANI_STT_KEYTERMS or config.GNANI_STT_MODEL != KEYTERMS_MODEL:
+        return None
+    unique = list(dict.fromkeys(term.strip() for term in keyterms if term and term.strip()))
+    return unique[:MAX_KEYTERMS] or None
+
+
+def _call(audio_bytes: bytes, lang: str, filename: str | None, keyterms: list[str] | None) -> str:
     base_url, api_key = require_settings("Prisma")
+    data = {
+        "language_code": language_code(lang),
+        "model": config.GNANI_STT_MODEL,
+        "format": config.GNANI_STT_FORMAT,
+    }
+    if keyterms:
+        data["keyterms"] = json.dumps(keyterms, ensure_ascii=False)
     try:
         response = httpx.post(
             f"{base_url}{ENDPOINT}",
             headers={"X-API-Key-ID": api_key},
             files={"audio_file": _upload_part(audio_bytes, filename)},
-            data={
-                "language_code": language_code(lang),
-                "model": config.GNANI_STT_MODEL,
-                "format": config.GNANI_STT_FORMAT,
-            },
+            data=data,
             timeout=REQUEST_TIMEOUT_SECONDS,
         )
     except httpx.HTTPError as exc:
