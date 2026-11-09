@@ -76,3 +76,27 @@
 - Migrations (Alembic): why `create_all` is enough today but loses data-safe column changes later.
 - Postgres index types: how `share_token` lookups stay fast as profiles grow.
 - Transactions: why a half-saved profile would be worse than no profile at all.
+
+## T1 — Gnani real mode (Prisma + Timbre)
+
+**What we built:** With `MOCK_GNANI=false` the two wrappers now make real HTTP calls: Prisma receives the clip as a file upload and returns text, Timbre receives JSON and returns WAV bytes. Responses are checked against the documented error shapes and turned into one `GnaniAPIError` carrying the status, error type and message. The API key is read once from settings, sent as a header, and never logged; mock mode is untouched.
+
+**Files:**
+- `backend/app/gnani/stt.py` — posts multipart to `/stt/v3` with `audio_file`, language code, model and format; an empty transcript is returned as `""`, not an error; `keyterms` is accepted but not sent yet.
+- `backend/app/gnani/tts.py` — posts JSON to `/api/v1/tts/inference` (text, model, voice, language, speed, audio config) and returns the WAV bytes, refusing any 200 that is not audio.
+- `backend/app/gnani/__init__.py` — `GnaniAPIError`, the error-body parser for all three shapes, the 30 s timeout, the `kn` → `kn-IN` map, and the missing-setting guard.
+- `backend/app/config.py` + `.env.example` — five new settings (STT model/format, TTS model/voice/speed) with the documented defaults; `httpx` added to `requirements.txt` as approved.
+- `scripts/try_gnani.py` — manual check: prints the Prisma transcript, speaks one fixed greeting through Timbre, saves `out.wav` (now git-ignored).
+
+**How it fits:** These calls are steps 2 and 7 of the flow; everything between them (safety, intent, matching, answers) still runs on the mock-free data in the database.
+
+**Key concepts (one line each):**
+- Multipart upload: one text field per form value plus the file, unlike JSON.
+- HTTP status vs `success`: a 200 body can still say `success: false`, so both must be checked.
+- Fail loudly with context: one error type plus status and type means T4 can log a useful reason.
+- Secrets hygiene: the key lives in one settings value and appears in no message or log line.
+
+**Later Learn:**
+- `httpx` clients and connection reuse: why one shared client beats a call per request at scale.
+- Audio codecs and sample rates: why Prisma wants ≤30 s clips and why we ask Timbre for 24 kHz.
+- Retries with backoff for 429/5xx: when retrying is safe and when it double-charges.

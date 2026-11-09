@@ -227,3 +227,4 @@ dist/
 __pycache__/
 
 test_audio/
+out.wav
