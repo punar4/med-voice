@@ -16,6 +16,9 @@ HOW_MANY = "HOW_MANY"
 FOOD = "FOOD"
 PURPOSE = "PURPOSE"
 DAYS_LEFT = "DAYS_LEFT"
+# Asking to change the medicine (more, less, stop, skip). Never answered from
+# the prescription: the pipeline always refers these to the doctor.
+CHANGE = "CHANGE"
 UNKNOWN = "UNKNOWN"
 
 # Fuzzy fallback (section 6a): loose matching for keywords of 4+ characters.
@@ -24,6 +27,36 @@ MIN_FUZZY_LENGTH = 4
 
 # Priority order matters: the first intent that matches wins.
 INTENT_KEYWORDS = (
+    (
+        # First: "can I increase the dose?" contains "dose"/"ಎಷ್ಟು" too, and must
+        # not be read as a how-many question.
+        CHANGE,
+        (
+            # Kannada
+            "ಜಾಸ್ತಿ ಮಾಡ",
+            "ಹೆಚ್ಚು ಮಾಡ",
+            "ಕಮ್ಮಿ ಮಾಡ",
+            "ಕಡಿಮೆ ಮಾಡ",
+            "ನಿಲ್ಲಿಸ",
+            "ನಿಲ್ಸ",
+            "ಬಿಟ್ಟುಬಿಡ",
+            "ಬಿಡಬಹುದಾ",
+            "ಬಿಡ್ಬೋದಾ",
+            "ಬಿಡಬಹುದು",
+            "ಡಬಲ್",
+            # Kanglish
+            "jaasti maad",
+            "kammi maad",
+            "nillis",
+            "bidbahuda",
+            # English
+            "increase",
+            "reduce",
+            "stop",
+            "skip",
+            "double",
+        ),
+    ),
     (
         DAYS_LEFT,
         (
@@ -188,14 +221,18 @@ def _exact(text: str, keywords: tuple[str, ...]) -> bool:
 
 
 def _fuzzy(text: str, keywords: tuple[str, ...]) -> bool:
+    # A keyword longer than the whole transcript is never matched as a fragment
+    # (partial_ratio would slide the transcript along it; see safety.py).
     return any(
-        len(keyword) >= MIN_FUZZY_LENGTH and partial_ratio(keyword, text) >= INTENT_FUZZY
+        len(keyword) >= MIN_FUZZY_LENGTH
+        and len(text) >= len(keyword)
+        and partial_ratio(keyword, text) >= INTENT_FUZZY
         for keyword in keywords
     )
 
 
 def detect(transcript: str) -> str:
-    """Return one of WHEN, HOW_MANY, FOOD, PURPOSE, DAYS_LEFT or UNKNOWN."""
+    """Return one of CHANGE, WHEN, HOW_MANY, FOOD, PURPOSE, DAYS_LEFT or UNKNOWN."""
     text = normalise(transcript)
     if not text:
         return UNKNOWN

@@ -8,6 +8,7 @@
 
 Outcome order, first rule that applies wins:
 1. emergency words                       -> emergency (always, before anything else)
+   asking to change the dose / stop       -> referral
 2. two tablets match equally well        -> clarify_which
    a colour no confirmed tablet has      -> referral
 3. follow-ups within FOLLOWUP_SECONDS of the previous question (section 6b)
@@ -124,6 +125,10 @@ def decide(
     confirmed = [medicine for medicine in medicines if medicine.confirmed]
     question = intent.detect(transcript)
     result = matching.match(transcript, confirmed)
+
+    if question == intent.CHANGE:
+        # More, less, stop, skip: only the doctor decides, whichever tablet.
+        return _referral(question, result.medicine)
 
     if result.ambiguous:
         options = answers.join_or([medicine.label for medicine in result.candidates], lang)

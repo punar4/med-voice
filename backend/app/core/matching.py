@@ -8,7 +8,7 @@ checked. Thresholds are constants at the top so they can be tuned in one place.
 
 from dataclasses import dataclass, field
 
-from rapidfuzz.fuzz import partial_ratio
+from rapidfuzz.fuzz import partial_ratio, ratio
 
 from ..models import Medicine
 from . import normalise
@@ -43,6 +43,38 @@ GENERIC_WORDS = frozenset(
         "maatre", "matre", "tablet", "tablets", "pill", "pills", "capsule",
     )
 )
+
+
+# English describing words, as spoken in Kanglish ("big white tablet"). Prisma
+# may write them in Roman or in Kannada script; both become the Kannada word the
+# caregiver's label uses, so one set of labels serves every way of speaking.
+ENGLISH_DESCRIPTORS = {
+    normalise(english): normalise(kannada)
+    for english, kannada in (
+        ("white", "ಬಿಳಿ"), ("ವೈಟ್", "ಬಿಳಿ"),
+        ("yellow", "ಹಳದಿ"), ("ಯೆಲ್ಲೋ", "ಹಳದಿ"),
+        ("red", "ಕೆಂಪು"), ("ರೆಡ್", "ಕೆಂಪು"),
+        ("blue", "ನೀಲಿ"), ("ಬ್ಲೂ", "ನೀಲಿ"),
+        ("green", "ಹಸಿರು"), ("ಗ್ರೀನ್", "ಹಸಿರು"),
+        ("orange", "ಕಿತ್ತಳೆ"), ("ಆರೆಂಜ್", "ಕಿತ್ತಳೆ"),
+        ("pink", "ಗುಲಾಬಿ"), ("ಪಿಂಕ್", "ಗುಲಾಬಿ"),
+        ("black", "ಕಪ್ಪು"), ("ಬ್ಲ್ಯಾಕ್", "ಕಪ್ಪು"),
+        ("brown", "ಕಂದು"), ("ಬ್ರೌನ್", "ಕಂದು"),
+        ("big", "ದೊಡ್ಡ"), ("ಬಿಗ್", "ದೊಡ್ಡ"), ("large", "ದೊಡ್ಡ"),
+        ("small", "ಸಣ್ಣ"), ("ಸ್ಮಾಲ್", "ಸಣ್ಣ"),
+        ("round", "ಗುಂಡು"), ("ರೌಂಡ್", "ಗುಂಡು"),
+    )
+}
+
+# A label word counts as "said" if a transcript word is at least this close
+# (Prisma may write ಗುಂಡ for ಗುಂಡು). Words shorter than this many characters are
+# too common to tell tablets apart.
+WORD_FUZZY = 85
+MIN_WORD_LENGTH = 3
+
+
+def _translate_descriptors(text: str) -> str:
+    return " ".join(ENGLISH_DESCRIPTORS.get(word, word) for word in text.split())
 
 
 def _without_generic(text: str) -> str:
@@ -119,6 +151,42 @@ def _colours_in(text: str) -> set[str]:
     }
 
 
+def _label_words(medicine: Medicine) -> set[str]:
+    """Words of the label, name and aliases that could identify this tablet:
+    no generic "tablet" words, no colours (shared by look-alikes), no doses."""
+    colours = {normalise(word) for word in COLOUR_WORDS} | set(COLOUR_WORDS.values())
+    words: set[str] = set()
+    for value in (medicine.label, medicine.name, *medicine.aliases):
+        for word in normalise(value or "").split():
+            if (
+                len(word) >= MIN_WORD_LENGTH
+                and word not in GENERIC_WORDS
+                and word not in colours
+                and not any(char.isdigit() for char in word)
+            ):
+                words.add(word)
+    return words
+
+
+def _says(word: str, spoken: set[str]) -> bool:
+    return word in spoken or any(
+        len(other) >= MIN_WORD_LENGTH and ratio(word, other) >= WORD_FUZZY for other in spoken
+    )
+
+
+def _by_distinct_word(text: str, confirmed: list[Medicine]) -> list[Medicine]:
+    """Tablets named by a word only they have: "ಗುಂಡು ಮಾತ್ರೆ" is the round one
+    even without its colour, because no other confirmed label says ಗುಂಡು."""
+    spoken = set(text.split())
+    words = {id(medicine): _label_words(medicine) for medicine in confirmed}
+    hits = []
+    for medicine in confirmed:
+        others = set().union(*(w for key, w in words.items() if key != id(medicine)))
+        if any(_says(word, spoken) for word in words[id(medicine)] - others):
+            hits.append(medicine)
+    return hits
+
+
 def _close(a: tuple[float, float], b: tuple[float, float]) -> bool:
     """Too close to call: neither number separates them.
 
@@ -139,7 +207,7 @@ def match(transcript: str, medicines: list[Medicine]) -> MatchResult:
     if not confirmed:
         return MatchResult()
 
-    text = _without_generic(normalise(transcript))
+    text = _without_generic(_translate_descriptors(normalise(transcript)))
     if not text:
         return MatchResult()
 
@@ -152,6 +220,13 @@ def match(transcript: str, medicines: list[Medicine]) -> MatchResult:
 
     known_colours = {medicine.color_word for medicine in confirmed}
     unlisted = bool(_colours_in(text) - known_colours)
+
+    # A word only one confirmed label has settles it, even if the rest of the
+    # label was not said. Two such tablets named at once stays unclear below.
+    if not unlisted:
+        named = _by_distinct_word(text, confirmed)
+        if len(named) == 1:
+            return MatchResult(medicine=named[0])
 
     if top[0] < MIN_SCORE:
         if unlisted:

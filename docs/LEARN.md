@@ -212,3 +212,50 @@
 - Server-side filtering and paging: why a 200-row cap will not scale and how `WHERE created_at >= ?` fixes it.
 - Why logging health conversations needs a retention policy and who may read them.
 - Timezone storage rules: UTC in the database, local time only in the browser.
+
+## T7 — Test scripts
+
+**What we built:** Two command-line tools that take the recorded clips and measure the app instead of trusting it. One downsamples a folder to 8 kHz mono WAV (phone quality); the other sends every clip to `/ask`, compares the answer with `test_audio/expected.csv`, and writes a results CSV plus a printed summary (overall pass %, emergency recall, per-outcome counts).
+
+**Files:**
+- `scripts/batch_test.py` — reads the expected CSV, asks each clip on its own throwaway profile, writes `test_audio/results.csv`, prints the summary.
+- `scripts/to_8khz.sh` — ffmpeg loop that converts audio files in a folder to 8 kHz mono WAV and skips non-audio files.
+
+**How it fits:** It drives the whole chain end to end (`audio → Prisma → safety → intent → matching → answers → Timbre → log`) through the same `/ask` route the elder page uses, so what it measures is what the elder would hear.
+
+**Key concepts (one line each):**
+- Passing is a product decision: outcome and matched tablet must both match, with "referral is also right" allowed where the prescription has no value to answer from.
+- Test isolation: a fresh profile per clip, because the pipeline treats a question within two minutes as a follow-up.
+- Emergency recall: the share of emergency clips detected, reported apart from overall accuracy because missing one is the worst failure.
+- `utf-8-sig` CSV: the BOM Excel writes is skipped on read and added on write, so Kannada text stays readable in Excel.
+
+**Later Learn:**
+- Confidence intervals: why 30 clips cannot prove 95% accuracy, and what sample size would.
+- Recorded-audio test sets: how real phone noise and accents change word error rate.
+- Running a batch as a pytest fixture so accuracy becomes a guard rail instead of a manual run.
+
+## T8 — Polish and deploy
+
+**What we built:** One Docker image that builds the React app, installs ffmpeg and the backend, and serves both from a single HTTPS origin. FastAPI now hands back `frontend/dist` and falls back to `index.html` for client routes, so the elder's link survives a refresh. A new `/api/health/db` route proves the database is reachable, and the README explains local setup, every environment variable, tests and the Render + Supabase deploy.
+
+**Files:**
+- `Dockerfile` — two stages: Node builds `frontend/dist`, then a slim Python image adds ffmpeg, the requirements and the built files.
+- `.dockerignore` — keeps `.git`, `venv`, `node_modules`, local databases and `.env` out of the build.
+- `backend/app/main.py` — `/api/health/db` (503 when the database is down) and static serving with an SPA fallback, declared after every API route.
+- `backend/requirements.txt` — adds `psycopg[binary]`, the Postgres driver.
+- `README.md` — setup, env vars, tests, batch test, deploy steps, and the `Results` / `How I built this` placeholders.
+
+**How it fits:** It is the same chain as before (elder speaks → audio → Prisma → safety → intent → matching → answers → Timbre → log), only now the browser, the API and the audio conversion live behind one URL, and the log rows land in Supabase Postgres instead of a local file.
+
+**Key concepts (one line each):**
+- Multi-stage build: an image can be built with tools it does not ship, so Node never appears in the final container.
+- SPA fallback: the server returns `index.html` for unknown paths because the page is chosen in the browser, not on the server.
+- Same origin: the microphone only works over HTTPS on one origin, which is why the UI is served by FastAPI rather than a separate static host.
+- Connection-string prefix: `postgresql+psycopg://` tells SQLAlchemy which driver to load; the rest of the URL is the provider's.
+- Readiness vs liveness: `/api/health` says the process is up, `/api/health/db` says it can actually reach the database.
+
+**Later Learn:**
+- Postgres connection pooling on a free tier, and why the pooler URL differs from the direct one.
+- Render's free-tier sleep cycle and how a keep-alive ping keeps the demo responsive.
+- Trimming a Docker image (layer order, `--no-install-recommends`, `pip --no-cache-dir`).
+- What autoscaling with several instances does to `create_all` on startup, and when to move to migrations.

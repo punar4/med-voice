@@ -1,0 +1,26 @@
+# Keep the image small and secret-free. The frontend is rebuilt inside the
+# image, so its node_modules and dist are never sent from the host.
+
+.git
+.github
+.env
+.env.*
+!.env.example
+
+venv
+.venv
+**/__pycache__
+**/*.pyc
+
+backend/*.db
+backend/tests
+docs
+test_audio
+
+frontend/node_modules
+frontend/dist
+
+out.wav
+CHANGES.md
+FREEBUFF_TASKS_v4.md
+T4_INPUTS_v4.md

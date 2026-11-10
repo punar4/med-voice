@@ -1,17 +1,29 @@
 """FastAPI application. Routes are added task by task; see FREEBUFF_TASKS_v4.md."""
 
+import logging
 from contextlib import asynccontextmanager
 from datetime import date
+from pathlib import Path
 from typing import Literal
 
 from fastapi import Depends, FastAPI, File, HTTPException, Response, UploadFile
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy import text
 from sqlmodel import Session, select
 
 from . import db, models
 from .audio import MAX_UPLOAD_BYTES
 from .core import pipeline
 from .core.matching import with_colour_alias
+
+logger = logging.getLogger(__name__)
+
+# Where `npm run build` leaves the frontend. The Docker image copies the same
+# folder in, so the deployed app serves API and UI from one origin (mic access
+# needs HTTPS on a single origin, not a separate static host).
+FRONTEND_DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
 
 
 @asynccontextmanager
@@ -79,6 +91,21 @@ def _save(session: Session, row):
 @app.get("/api/health")
 def health() -> dict:
     """Liveness check. Must not touch the database."""
+    return {"ok": True}
+
+
+@app.get("/api/health/db")
+def health_db(session: Session = Depends(db.get_session)) -> dict:
+    """Readiness check: one round trip to the database (the keep-alive ping).
+
+    Returns 503 instead of 500 so a sleeping or unreachable Postgres reads as
+    "not ready yet" rather than a crash.
+    """
+    try:
+        session.execute(text("SELECT 1"))
+    except Exception as exc:  # noqa: BLE001 - any driver/connection error means not ready
+        logger.warning("database health check failed: %s", type(exc).__name__)
+        raise HTTPException(status_code=503, detail="database unavailable") from None
     return {"ok": True}
 
 
@@ -205,3 +232,35 @@ async def elder_ask(
         "medicine": result.medicine,
         "audio_error": result.audio_error,
     }
+
+
+# --- Frontend (built by `npm run build`, served by this same app) -------------
+# Everything above is the API. The two handlers below are declared last so real
+# routes always win, and they never answer for a missing /api path.
+
+if (FRONTEND_DIST / "assets").is_dir():
+    app.mount("/assets", StaticFiles(directory=FRONTEND_DIST / "assets"), name="assets")
+
+
+@app.get("/{full_path:path}", include_in_schema=False)
+def serve_frontend(full_path: str) -> FileResponse:
+    """Serve a built file, or `index.html` so client routes like /elder/<token> work.
+
+    Without the fallback, refreshing the elder's link returns 404 because the
+    server has no file at that path: the page is chosen in the browser.
+    """
+    if full_path.startswith("api/"):
+        raise HTTPException(status_code=404, detail="Not Found")
+
+    root = FRONTEND_DIST.resolve()
+    candidate = (root / full_path).resolve()
+    if full_path and candidate.is_relative_to(root) and candidate.is_file():
+        return FileResponse(candidate)
+
+    index = root / "index.html"
+    if index.is_file():
+        return FileResponse(index)
+    raise HTTPException(
+        status_code=404,
+        detail="frontend build not found: run `npm run build` in frontend/",
+    )
