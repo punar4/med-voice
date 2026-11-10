@@ -6,7 +6,7 @@ the failure we must avoid. New real-world phrasings go into the constants below,
 not into new logic.
 """
 
-from rapidfuzz.fuzz import partial_ratio
+from rapidfuzz.fuzz import partial_ratio, ratio
 
 from . import normalise
 
@@ -33,6 +33,7 @@ PHRASES_KANNADA = (
     "ಬಿದ್ಬಿಟ್ರು",
     "ಬಿದ್ದುಬಿಟ್ಟ",
     "ಮೂರ್ಛೆ",
+    "ಮೂರ್ಚೆ",
     "ಫಿಟ್ಸ್",
     "ರಕ್ತ ಬರ್ತಿದೆ",
     "ರಕ್ತ ವಾಂತಿ",
@@ -96,7 +97,7 @@ PHRASES_ENGLISH = (
 WORD_PAIRS = tuple(
     tuple(tuple(normalise(stem) for stem in group) for group in pair)
     for pair in (
-        (("ಎದೆ",), ("ನೋವ", "ಭಾರ", "ಹಿಡ")),
+        (("ಎದೆ",), ("ನೋವ", "ಭಾರ", "ಹಿಡ", "ಒತ್ತ")),
         (("ಉಸಿರ",), ("ಕಷ್ಟ", "ಕಟ್ಟ", "ಆಗ್ತಿಲ್ಲ", "ಆಗುತ್ತಿಲ್ಲ", "ತೊಂದರೆ")),
         (("ಮಾತ್ರೆ",), ("ಜಾಸ್ತಿ", "ತುಂಬಾ", "ಎಲ್ಲಾ"), ("ತಗೊಂಡ", "ತೆಗೆದುಕೊಂಡ", "ನುಂಗಿ")),
     )
@@ -123,9 +124,22 @@ def _phrase_matches(text: str) -> bool:
     return any(phrase in text for phrase in PHRASES)
 
 
+def _fuzzy_score(phrase: str, text: str) -> float:
+    """How closely `text` contains `phrase`, allowing a misheard spelling.
+
+    partial_ratio slides the SHORTER string along the longer one, so when the
+    transcript is shorter than the phrase it would score a lone "ಮಾತ್ರೆ" as 100
+    against "ಜಾಸ್ತಿ ಮಾತ್ರೆ ತಗೊಂಡ್". A transcript shorter than the phrase is
+    therefore compared whole (ratio), never as a fragment.
+    """
+    if len(text) >= len(phrase):
+        return partial_ratio(phrase, text)
+    return ratio(phrase, text)
+
+
 def _fuzzy_matches(text: str) -> bool:
     return any(
-        len(phrase) >= MIN_FUZZY_LENGTH and partial_ratio(phrase, text) >= EMERGENCY_FUZZY
+        len(phrase) >= MIN_FUZZY_LENGTH and _fuzzy_score(phrase, text) >= EMERGENCY_FUZZY
         for phrase in PHRASES
     )
 

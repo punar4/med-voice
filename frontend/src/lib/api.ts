@@ -38,6 +38,38 @@ export interface ProfileResponse {
   medicines: Medicine[]
 }
 
+// Every outcome /ask can return (see the T4 entry in docs/LEARN.md).
+export type AskOutcome =
+  | 'answered'
+  | 'clarify_which'
+  | 'clarify_question'
+  | 'clarify_repeat'
+  | 'referral'
+  | 'emergency'
+  | 'error'
+
+export interface QuestionLog {
+  id: number
+  profile_id: number
+  created_at: string
+  transcript: string
+  intent: string
+  medicine_id: number | null
+  outcome: AskOutcome
+  answer_key: string
+  answer_text: string
+}
+
+export interface AskResponse {
+  transcript: string
+  outcome: AskOutcome
+  answer_text: string
+  audio_base64: string | null
+  medicine: { label: string; photo_url: string | null } | null
+  // True when Timbre failed: the text is still correct, only the voice is missing.
+  audio_error: boolean
+}
+
 const API_BASE = '/api'
 
 async function errorMessage(response: Response): Promise<string> {
@@ -52,9 +84,11 @@ async function errorMessage(response: Response): Promise<string> {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  // Only JSON bodies get a Content-Type here; FormData must set its own boundary.
+  const isJson = typeof init?.body === 'string'
   const response = await fetch(`${API_BASE}${path}`, {
     ...init,
-    headers: init?.body ? { 'Content-Type': 'application/json', ...init.headers } : init?.headers,
+    headers: isJson ? { 'Content-Type': 'application/json', ...init?.headers } : init?.headers,
   })
   if (!response.ok) throw new Error(await errorMessage(response))
   if (response.status === 204) return undefined as T
@@ -83,4 +117,16 @@ export function confirmMedicine(medicineId: number): Promise<Medicine> {
 
 export function deleteMedicine(medicineId: number): Promise<void> {
   return request(`/medicines/${medicineId}`, { method: 'DELETE' })
+}
+
+// Caregiver's log: every question the elder asked, newest first (capped by the API).
+export function getQuestionLog(profileId: number): Promise<QuestionLog[]> {
+  return request(`/profiles/${profileId}/log`)
+}
+
+// The elder's one action: send the recorded question, get the spoken answer.
+export function askElder(token: string, recording: Blob): Promise<AskResponse> {
+  const form = new FormData()
+  form.append('audio', recording, 'audio.wav')
+  return request(`/elder/${encodeURIComponent(token)}/ask`, { method: 'POST', body: form })
 }

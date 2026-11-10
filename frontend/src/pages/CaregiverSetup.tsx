@@ -281,6 +281,9 @@ export default function CaregiverSetup() {
             <button type="button" onClick={handleCopyLink} className={secondaryButton}>
               {copied ? 'Copied' : 'Copy link'}
             </button>
+            <a href={`/log/${profile.id}`} className={`${secondaryButton} text-center`}>
+              Question log
+            </a>
           </div>
         </header>
 

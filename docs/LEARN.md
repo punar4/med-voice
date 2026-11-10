@@ -163,3 +163,52 @@
 - Why "ದಿನ" alone was a bad DAYS_LEFT keyword ("ದಿನಕ್ಕೆ ಎಷ್ಟು" = per day) — keyword design pitfalls.
 - ffmpeg pipes (`pipe:0` / `pipe:1`) and why M4A can't always be read from a pipe.
 - Evaluating safety rules: precision vs recall, and building a test set of real transcripts.
+
+## T5 — Elder page
+
+**What we built:** The elder's screen at `/elder/<token>`. One huge round button records a question and stops by itself after 10 seconds; the clip is turned into a 16 kHz mono WAV *in the browser*, sent to `/api/elder/<token>/ask`, and the answer arrives as big text plus a voice that plays at once. An emergency answer paints the whole screen red with a huge 108, and there is a large "say it again" button that replays the last voice.
+
+**Files:**
+- `frontend/src/lib/recorder.ts` — MediaRecorder captures the mic, the Web Audio API decodes it, an OfflineAudioContext downmixes/resamples to 16 kHz mono, and a hand-written 44-byte RIFF header makes `audio.wav`.
+- `frontend/src/pages/Elder.tsx` — the whole elder screen: idle / listening / thinking / answer, photo and label of the matched tablet, replay button, and the red 108 banner.
+- `frontend/src/lib/api.ts` — `askElder()` posts the WAV as multipart form data; `request()` no longer forces a JSON Content-Type on FormData.
+- `frontend/src/App.tsx` — picks the page from the URL: `/elder/<token>` or the caregiver setup.
+
+**How it fits:** This is the last step of the chain: elder speaks → **recorder** → audio → Prisma → safety → intent → matching → answers → Timbre → **answer on screen and in the ear**, and the question is already logged for T6.
+
+**Key concepts (one line each):**
+- MediaRecorder: the browser's built-in recorder; it gives WebM/MP4, never WAV, and cannot be told a sample rate.
+- decodeAudioData + OfflineAudioContext: decode the clip and re-render it at 16 kHz mono, using the browser's own resampler.
+- WAV header: 44 bytes (RIFF/WAVE/fmt /data) that tell a player the format; samples are plain 16-bit little-endian numbers.
+- Multipart form data: how a file is sent in a normal HTTP POST; the browser sets the boundary, so code must not set the header.
+- Data URL (`data:audio/wav;base64,…`): the answer audio inlined in one string, played without a second request.
+- Autoplay policy: browsers only start sound after a user gesture, which is why the answer plays after a button press, and a rejected `play()` is not an error.
+- Secure context: `getUserMedia` needs HTTPS or localhost, so the phone test goes through the deployed URL.
+
+**Later Learn:**
+- Trimming leading/trailing silence and detecting "no speech" client-side.
+- Why iOS Safari needs a different recorder path (it produces MP4/AAC).
+- Making the page an installable PWA so the button works offline-ish and full screen.
+
+## T6 — Caregiver question log
+
+**What we built:** A caregiver page at `/log/<profile id>` that lists every question the elder asked, newest first, with the time, transcript, outcome tag and the answer that was spoken. Above the table are three counts: questions today, referrals today and emergencies. Emergency rows are pinned to the top and painted red so they cannot be missed.
+
+**Files:**
+- `frontend/src/pages/CaregiverLog.tsx` — the page: loads `/api/profiles/{id}/log`, counts today's rows, sorts emergencies first, and colour-tags each outcome (answered neutral, clarify amber, referral highlighted, emergency red, error red).
+- `frontend/src/lib/api.ts` — `QuestionLog` type and `getQuestionLog(profileId)`, next to the other typed calls.
+- `frontend/src/App.tsx` — adds the `/log/<id>` route beside the elder and setup pages.
+- `frontend/src/pages/CaregiverSetup.tsx` — a "Question log" link in the header, so the caregiver can find the page.
+
+**How it fits:** This reads the end of the flow — the `QuestionLog` row saved in step 8 after `safety → intent → matching → answers → Timbre`. It never calls the pipeline itself; it only reads what was already decided.
+
+**Key concepts (one line each):**
+- Read-only page: the log has no edit buttons, so history stays a record, not a suggestion box.
+- Client-side grouping: "today" and "emergencies" are computed from the returned rows, so the API stays one simple list.
+- Sorting a copy: `[...entries].sort(...)` never mutates React state.
+- ISO timestamps: the API sends UTC (`...Z`), so the browser converts to the caregiver's local clock.
+
+**Later Learn:**
+- Server-side filtering and paging: why a 200-row cap will not scale and how `WHERE created_at >= ?` fixes it.
+- Why logging health conversations needs a retention policy and who may read them.
+- Timezone storage rules: UTC in the database, local time only in the browser.
