@@ -87,7 +87,7 @@ export default function CaregiverLog({ profileId }: { profileId: number }) {
   )
 
   return (
-    <main className="min-h-screen bg-linear-to-b from-teal-50 via-white to-amber-50 px-4 py-6">
+    <main className="min-h-screen bg-linear-to-b from-blue-50 via-white to-slate-100 px-4 py-6">
       <div className="mx-auto max-w-4xl space-y-6">
         <Brand subtitle="Caregiver" />
         <header className="flex flex-wrap items-end justify-between gap-3">

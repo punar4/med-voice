@@ -68,14 +68,14 @@ function LangSwitch({ lang, onChange }: { lang: Lang; onChange: (lang: Lang) => 
       onClick={() => onChange(value)}
       aria-pressed={lang === value}
       className={`rounded-full px-3 py-1 text-sm font-semibold transition-colors ${
-        lang === value ? 'bg-teal-700 text-white shadow' : 'text-teal-800'
+        lang === value ? 'bg-[#0C2451] text-white shadow' : 'text-[#0C2451]'
       }`}
     >
       {text}
     </button>
   )
   return (
-    <div className="flex rounded-full bg-white p-1 ring-1 ring-teal-100" role="group" aria-label="Language / ಭಾಷೆ">
+    <div className="flex rounded-full bg-white p-1 ring-1 ring-blue-100" role="group" aria-label="Language / ಭಾಷೆ">
       {option('kn', 'ಕನ್ನಡ')}
       {option('en', 'English')}
     </div>
@@ -221,11 +221,11 @@ function ElderScreen({ token, lang, onLang }: { token: string; lang: Lang; onLan
   const busy = phase === 'processing'
 
   return (
-    <main className="flex min-h-screen flex-col items-center bg-linear-to-b from-teal-50 via-white to-amber-50 px-5 pt-5 pb-6 text-center">
+    <main className="flex min-h-screen flex-col items-center bg-linear-to-b from-blue-50 via-white to-slate-100 px-5 pt-5 pb-6 text-center">
       {/* Brand: who is speaking to the elder. */}
-      <header className="flex w-full max-w-xl items-center justify-between gap-2 text-teal-800">
+      <header className="flex w-full max-w-xl items-center justify-between gap-2 text-[#0C2451]">
         <div className="flex items-center gap-2">
-        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-teal-700 text-white">
+        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#0C2451] text-white">
           <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className="h-4 w-4">
             <path d="M10 4h4v6h6v4h-6v6h-4v-6H4v-4h6z" />
           </svg>
@@ -247,8 +247,8 @@ function ElderScreen({ token, lang, onLang }: { token: string; lang: Lang; onLan
                     className="h-28 w-28 rounded-2xl border border-slate-200 bg-white object-contain p-2"
                   />
                 )}
-                <span className="inline-flex items-center gap-2 rounded-full bg-teal-50 px-4 py-1.5 text-lg font-semibold text-teal-800 ring-1 ring-teal-100">
-                  <span className="h-2.5 w-2.5 rounded-full bg-teal-600" aria-hidden="true" />
+                <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-1.5 text-lg font-semibold text-[#0C2451] ring-1 ring-blue-100">
+                  <span className="h-2.5 w-2.5 rounded-full bg-blue-600" aria-hidden="true" />
                   {answer.medicine.label}
                 </span>
               </div>
@@ -264,7 +264,7 @@ function ElderScreen({ token, lang, onLang }: { token: string; lang: Lang; onLan
               <button
                 type="button"
                 onClick={replay}
-                className="w-full rounded-2xl bg-teal-700 px-6 py-4 text-2xl font-bold text-white shadow-md active:scale-95"
+                className="w-full rounded-2xl bg-blue-700 px-6 py-4 text-2xl font-bold text-white shadow-md active:scale-95"
               >
                 <Bi line={TEXT.sayAgain} />
               </button>
@@ -311,7 +311,7 @@ function ElderScreen({ token, lang, onLang }: { token: string; lang: Lang; onLan
               ? 'animate-pulse bg-red-600 ring-red-100'
               : busy
                 ? 'bg-slate-400 ring-slate-100'
-                : 'bg-linear-to-br from-teal-600 to-teal-800 ring-teal-100'
+                : 'bg-linear-to-br from-[#3395FF] to-[#0C2451] ring-blue-100'
           }`}
         >
           {recording ? stopIcon : micIcon}

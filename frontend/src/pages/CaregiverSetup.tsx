@@ -107,22 +107,22 @@ function toInput(draft: Draft): MedicineInput {
 }
 
 const inputClass =
-  'mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-base text-slate-900 focus:border-teal-600 focus:ring-2 focus:ring-teal-100 focus:outline-none'
-// Same look as the elder page: soft teal-to-warm background, white cards.
-const pageClass = 'min-h-screen bg-linear-to-b from-teal-50 via-white to-amber-50 px-4'
+  'mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-base text-slate-900 focus:border-blue-600 focus:ring-2 focus:ring-blue-100 focus:outline-none'
+// Same look as the elder page: soft blue-to-warm background, white cards.
+const pageClass = 'min-h-screen bg-linear-to-b from-blue-50 via-white to-slate-100 px-4'
 const cardClass = 'rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100'
 
 /** The MedVoice mark shared with the elder page. */
 export function Brand({ subtitle }: { subtitle: string }) {
   return (
-    <div className="flex items-center gap-2 text-teal-800">
-      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-teal-700 text-white">
+    <div className="flex items-center gap-2 text-[#0C2451]">
+      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#0C2451] text-white">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className="h-4 w-4">
           <path d="M10 4h4v6h6v4h-6v6h-4v-6H4v-4h6z" />
         </svg>
       </span>
       <span className="text-xl font-bold tracking-tight">MedVoice</span>
-      <span className="ml-1 rounded-full bg-teal-50 px-2.5 py-0.5 text-xs font-semibold text-teal-800 ring-1 ring-teal-100">
+      <span className="ml-1 rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-[#0C2451] ring-1 ring-blue-100">
         {subtitle}
       </span>
     </div>
@@ -130,7 +130,7 @@ export function Brand({ subtitle }: { subtitle: string }) {
 }
 const labelClass = 'block text-sm font-medium text-slate-700'
 const primaryButton =
-  'rounded-xl bg-teal-700 px-4 py-2 text-base font-semibold text-white shadow-sm hover:bg-teal-800 disabled:opacity-50'
+  'rounded-xl bg-blue-700 px-4 py-2 text-base font-semibold text-white shadow-sm hover:bg-[#13306b] disabled:opacity-50'
 const secondaryButton =
   'rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50'
 
@@ -526,7 +526,7 @@ export default function CaregiverSetup() {
                 <li
                   key={medicine.id}
                   className={`rounded-xl border p-4 ${
-                    medicine.confirmed ? 'border-teal-200 bg-teal-50/40' : 'border-amber-300 bg-amber-50'
+                    medicine.confirmed ? 'border-blue-200 bg-blue-50/40' : 'border-amber-300 bg-amber-50'
                   }`}
                 >
                   <div className="flex flex-wrap items-start justify-between gap-2">
@@ -553,7 +553,7 @@ export default function CaregiverSetup() {
 
                     <span
                       className={`rounded-full px-3 py-1 text-sm font-medium ${
-                        medicine.confirmed ? 'bg-teal-700 text-white' : 'bg-amber-600 text-white'
+                        medicine.confirmed ? 'bg-[#0C2451] text-white' : 'bg-amber-600 text-white'
                       }`}
                     >
                       {medicine.confirmed ? 'Confirmed' : 'Not confirmed'}
@@ -572,7 +572,7 @@ export default function CaregiverSetup() {
                         type="button"
                         disabled={busy}
                         onClick={() => handleConfirm(medicine)}
-                        className="rounded-xl bg-teal-700 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-800 disabled:opacity-50"
+                        className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-semibold text-white hover:bg-[#13306b] disabled:opacity-50"
                       >
                         Confirm
                       </button>
