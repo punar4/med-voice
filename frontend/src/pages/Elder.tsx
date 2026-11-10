@@ -13,6 +13,7 @@ const TEXT = {
   sayAgain: { kn: 'ಇನ್ನೊಂದ್ಸಲ ಹೇಳಿ', en: 'Say it again' },
   askAgain: { kn: 'ಮತ್ತೆ ಕೇಳೋಕೆ ಒತ್ತಿ', en: 'Press to ask again' },
   call108: { kn: '📞 108ಗೆ ಫೋನ್ ಮಾಡಿ', en: 'Call 108' },
+  urgent108: { kn: '📞 ಅರ್ಜೆಂಟ್ ಇದ್ರೆ 108ಗೆ ಫೋನ್ ಮಾಡಿ', en: 'Emergency? Call 108' },
   idleTitle: { kn: 'ಒತ್ತಿ, ಕೇಳಿ', en: 'Press and ask' },
   idleHint: { kn: 'ನಿಮ್ಮ ಮಾತ್ರೆ ಬಗ್ಗೆ ಕೇಳಿ.', en: 'Ask about your medicine.' },
   listeningTitle: { kn: 'ಕೇಳಿಸ್ಕೊಳ್ತಾ ಇದೀನಿ…', en: 'Listening…' },
@@ -244,6 +245,16 @@ export default function Elder({ token }: { token: string }) {
       {recording && (
         <p className="text-lg text-slate-500"><Bi line={TEXT.stopsAfter(MAX_RECORDING_SECONDS)} enClass="text-base" /></p>
       )}
+
+      {/* Always reachable: if the app mishears or cannot hear an emergency,
+          the elder can still call for help with one tap. */}
+      <a
+        href="tel:108"
+        aria-label={label(TEXT.urgent108)}
+        className="mt-2 rounded-2xl border-2 border-red-600 px-6 py-3 text-xl font-bold text-red-700 no-underline active:scale-95"
+      >
+        <Bi line={TEXT.urgent108} enClass="text-base font-normal" />
+      </a>
     </main>
   )
 }

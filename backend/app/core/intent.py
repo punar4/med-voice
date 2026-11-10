@@ -44,6 +44,13 @@ INTENT_KEYWORDS = (
             "ಬಿಡ್ಬೋದಾ",
             "ಬಿಡಬಹುದು",
             "ಡಬಲ್",
+            # A missed or doubled dose is also the doctor's call, never ours.
+            "ಮರೆತ",
+            "ಮರ್ತ",
+            "ಮಿಸ್",
+            "ಎರಡು ತಗೊಂಡ",
+            "ಎರಡ್ ತಗೊಂಡ",
+            "ಎರಡು ಸಲ ತಗೊಂಡ",
             # Kanglish
             "jaasti maad",
             "kammi maad",
@@ -55,6 +62,8 @@ INTENT_KEYWORDS = (
             "stop",
             "skip",
             "double",
+            "missed",
+            "forgot",
         ),
     ),
     (
@@ -128,6 +137,12 @@ INTENT_KEYWORDS = (
             "ಯಾವ ಟೈಮ್",
             "ಯಾವ ಹೊತ್ತು",
             "ಟೈಮ್",
+            # "How many times a day?" is answered by the list of times, not by
+            # the per-dose count (WHEN is checked before HOW_MANY).
+            "ಎಷ್ಟು ಸಲ",
+            "ಎಷ್ಟ್ ಸಲ",
+            "ಎಷ್ಟು ಸರ್ತಿ",
+            "ಎಷ್ಟ್ ಸರ್ತಿ",
             # Kanglish
             "yaavaga",
             "yavaga",
@@ -137,6 +152,7 @@ INTENT_KEYWORDS = (
             # English
             "when",
             "what time",
+            "how many times",
         ),
     ),
     (
