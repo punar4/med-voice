@@ -1,11 +1,12 @@
-import { useEffect, useRef, useState } from 'react'
+import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { askElder, type AskResponse } from '../lib/api'
 import { MAX_RECORDING_SECONDS, RecorderError, startRecording, type Recording } from '../lib/recorder'
 
 // Elder page: one big button, one question, one spoken answer. No menus.
 // Phases: idle -> recording -> processing -> answered (or failed).
-// Every line is spoken-style Kannada first, with English underneath for
-// family members or caregivers who read English.
+// Every line exists in spoken-style Kannada and in English. Like most Indian
+// multi-language apps, the screen shows ONE language at a time (Kannada by
+// default) with a switch at the top, instead of stacking both.
 
 type Line = { kn: string; en: string }
 
@@ -36,13 +37,65 @@ const TEXT = {
 const both = (line: Line) => `${line.kn}\n${line.en}`
 const label = (line: Line) => `${line.kn} / ${line.en}`
 
-/** Kannada on top, smaller English underneath. */
-function Bi({ line, enClass = 'text-[0.6em] font-normal opacity-75' }: { line: Line; enClass?: string }) {
+type Lang = 'kn' | 'en'
+const LANG_KEY = 'medvoice-lang'
+const LangContext = createContext<Lang>('kn')
+
+function savedLang(): Lang {
+  try {
+    return window.localStorage.getItem(LANG_KEY) === 'en' ? 'en' : 'kn'
+  } catch {
+    return 'kn'
+  }
+}
+
+/** The line in the chosen language. (`enClass` is kept so call sites stay unchanged.) */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function Bi({ line }: { line: Line; enClass?: string }) {
+  return <span className="block">{line[useContext(LangContext)]}</span>
+}
+
+/** Error messages arrive as two lines (Kannada, then English); show the chosen one. */
+function pick(message: string, lang: Lang): string {
+  const [kn, en] = message.split('\n')
+  return (lang === 'en' ? en : kn) ?? message
+}
+
+function LangSwitch({ lang, onChange }: { lang: Lang; onChange: (lang: Lang) => void }) {
+  const option = (value: Lang, text: string) => (
+    <button
+      type="button"
+      onClick={() => onChange(value)}
+      aria-pressed={lang === value}
+      className={`rounded-full px-3 py-1 text-sm font-semibold transition-colors ${
+        lang === value ? 'bg-teal-700 text-white shadow' : 'text-teal-800'
+      }`}
+    >
+      {text}
+    </button>
+  )
   return (
-    <>
-      <span className="block">{line.kn}</span>
-      <span className={`block ${enClass}`}>{line.en}</span>
-    </>
+    <div className="flex rounded-full bg-white p-1 ring-1 ring-teal-100" role="group" aria-label="Language / ಭಾಷೆ">
+      {option('kn', 'ಕನ್ನಡ')}
+      {option('en', 'English')}
+    </div>
+  )
+}
+
+export default function Elder({ token }: { token: string }) {
+  const [lang, setLang] = useState<Lang>(savedLang)
+  function choose(next: Lang) {
+    setLang(next)
+    try {
+      window.localStorage.setItem(LANG_KEY, next)
+    } catch {
+      // Private mode: the choice just isn't remembered.
+    }
+  }
+  return (
+    <LangContext.Provider value={lang}>
+      <ElderScreen token={token} lang={lang} onLang={choose} />
+    </LangContext.Provider>
   )
 }
 
@@ -61,7 +114,7 @@ const stopIcon = (
   </svg>
 )
 
-export default function Elder({ token }: { token: string }) {
+function ElderScreen({ token, lang, onLang }: { token: string; lang: Lang; onLang: (lang: Lang) => void }) {
   const [phase, setPhase] = useState<Phase>('idle')
   const [answer, setAnswer] = useState<AskResponse | null>(null)
   const [problem, setProblem] = useState<string | null>(null)
@@ -168,90 +221,113 @@ export default function Elder({ token }: { token: string }) {
   const busy = phase === 'processing'
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-8 bg-slate-50 px-6 py-10 text-center">
-      {phase === 'answered' && answer ? (
-        <section className="w-full max-w-xl space-y-6">
-          {answer.medicine && (
-            <div className="flex flex-col items-center gap-3">
-              {answer.medicine.photo_url && (
-                <img
-                  src={answer.medicine.photo_url}
-                  alt={answer.medicine.label}
-                  className="h-28 w-28 rounded-2xl border border-slate-200 bg-white object-contain p-2"
-                />
-              )}
-              <p className="text-xl font-semibold text-slate-600">{answer.medicine.label}</p>
-            </div>
-          )}
+    <main className="flex min-h-screen flex-col items-center bg-linear-to-b from-teal-50 via-white to-amber-50 px-5 pt-5 pb-6 text-center">
+      {/* Brand: who is speaking to the elder. */}
+      <header className="flex w-full max-w-xl items-center justify-between gap-2 text-teal-800">
+        <div className="flex items-center gap-2">
+        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-teal-700 text-white">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className="h-4 w-4">
+            <path d="M10 4h4v6h6v4h-6v6h-4v-6H4v-4h6z" />
+          </svg>
+        </span>
+        <span className="text-xl font-bold tracking-tight">MedVoice</span>
+        </div>
+        <LangSwitch lang={lang} onChange={onLang} />
+      </header>
 
-          <p className="text-3xl leading-snug font-semibold text-slate-900">{answer.answer_text}</p>
+      <div className="flex w-full max-w-xl flex-1 flex-col items-center justify-center gap-7 py-6">
+        {phase === 'answered' && answer ? (
+          <section className="w-full space-y-5 rounded-3xl bg-white p-6 shadow-lg ring-1 ring-slate-100">
+            {answer.medicine && (
+              <div className="flex flex-col items-center gap-3">
+                {answer.medicine.photo_url && (
+                  <img
+                    src={answer.medicine.photo_url}
+                    alt={answer.medicine.label}
+                    className="h-28 w-28 rounded-2xl border border-slate-200 bg-white object-contain p-2"
+                  />
+                )}
+                <span className="inline-flex items-center gap-2 rounded-full bg-teal-50 px-4 py-1.5 text-lg font-semibold text-teal-800 ring-1 ring-teal-100">
+                  <span className="h-2.5 w-2.5 rounded-full bg-teal-600" aria-hidden="true" />
+                  {answer.medicine.label}
+                </span>
+              </div>
+            )}
 
-          {answer.audio_error && (
-            <p className="text-lg text-slate-600"><Bi line={TEXT.noVoice} enClass="text-base" /></p>
-          )}
+            <p className="text-3xl leading-snug font-semibold text-slate-900">{answer.answer_text}</p>
 
-          {answer.audio_base64 && !answer.audio_error && (
-            <button
-              type="button"
-              onClick={replay}
-              className="w-full rounded-2xl bg-teal-700 px-6 py-5 text-2xl font-bold text-white active:scale-95"
-            >
-              <Bi line={TEXT.sayAgain} />
-            </button>
-          )}
-        </section>
-      ) : (
-        <section className="space-y-3">
-          <p className="text-3xl font-semibold text-slate-900">
-            <Bi
-              line={busy ? TEXT.thinkingTitle : recording ? TEXT.listeningTitle : phase === 'failed' ? TEXT.failedTitle : TEXT.idleTitle}
-            />
+            {answer.audio_error && (
+              <p className="text-lg text-slate-600"><Bi line={TEXT.noVoice} enClass="text-base" /></p>
+            )}
+
+            {answer.audio_base64 && !answer.audio_error && (
+              <button
+                type="button"
+                onClick={replay}
+                className="w-full rounded-2xl bg-teal-700 px-6 py-4 text-2xl font-bold text-white shadow-md active:scale-95"
+              >
+                <Bi line={TEXT.sayAgain} />
+              </button>
+            )}
+          </section>
+        ) : (
+          <section className="space-y-3">
+            <p className="text-4xl font-bold text-slate-900">
+              <Bi
+                line={busy ? TEXT.thinkingTitle : recording ? TEXT.listeningTitle : phase === 'failed' ? TEXT.failedTitle : TEXT.idleTitle}
+                enClass="text-[0.5em] font-medium text-slate-500"
+              />
+            </p>
+            <p className="text-xl text-slate-600">
+              <Bi
+                line={
+                  busy
+                    ? TEXT.thinkingHint
+                    : recording
+                      ? TEXT.listeningHint
+                      : phase === 'failed'
+                        ? TEXT.failedHint
+                        : TEXT.idleHint
+                }
+                enClass="text-base text-slate-500"
+              />
+            </p>
+          </section>
+        )}
+
+        {problem && (
+          <p role="alert" className="w-full rounded-2xl bg-red-50 px-5 py-4 text-xl whitespace-pre-line text-red-800 ring-1 ring-red-100">
+            {pick(problem, lang)}
           </p>
-          <p className="text-xl text-slate-600">
-            <Bi
-              line={
-                busy
-                  ? TEXT.thinkingHint
-                  : recording
-                    ? TEXT.listeningHint
-                    : phase === 'failed'
-                      ? TEXT.failedHint
-                      : TEXT.idleHint
-              }
-              enClass="text-base"
-            />
-          </p>
-        </section>
-      )}
+        )}
 
-      {problem && (
-        <p role="alert" className="max-w-xl rounded-xl bg-red-50 px-5 py-4 text-xl whitespace-pre-line text-red-800">
-          {problem}
-        </p>
-      )}
+        <button
+          type="button"
+          onClick={handlePress}
+          disabled={busy}
+          aria-label={label(recording ? TEXT.stopLabel : TEXT.startLabel)}
+          className={`flex aspect-square w-[64vw] max-w-72 items-center justify-center rounded-full text-white shadow-2xl ring-[14px] transition-transform active:scale-95 disabled:opacity-60 ${
+            recording
+              ? 'animate-pulse bg-red-600 ring-red-100'
+              : busy
+                ? 'bg-slate-400 ring-slate-100'
+                : 'bg-linear-to-br from-teal-600 to-teal-800 ring-teal-100'
+          }`}
+        >
+          {recording ? stopIcon : micIcon}
+        </button>
 
-      <button
-        type="button"
-        onClick={handlePress}
-        disabled={busy}
-        aria-label={label(recording ? TEXT.stopLabel : TEXT.startLabel)}
-        className={`flex aspect-square w-[70vw] max-h-80 max-w-80 items-center justify-center rounded-full text-white shadow-xl transition-transform active:scale-95 disabled:opacity-60 ${
-          recording ? 'animate-pulse bg-red-600' : 'bg-teal-700'
-        }`}
-      >
-        {recording ? stopIcon : micIcon}
-      </button>
-
-      {recording && (
-        <p className="text-lg text-slate-500"><Bi line={TEXT.stopsAfter(MAX_RECORDING_SECONDS)} enClass="text-base" /></p>
-      )}
+        {recording && (
+          <p className="text-lg text-slate-500"><Bi line={TEXT.stopsAfter(MAX_RECORDING_SECONDS)} enClass="text-base" /></p>
+        )}
+      </div>
 
       {/* Always reachable: if the app mishears or cannot hear an emergency,
           the elder can still call for help with one tap. */}
       <a
         href="tel:108"
         aria-label={label(TEXT.urgent108)}
-        className="mt-2 rounded-2xl border-2 border-red-600 px-6 py-3 text-xl font-bold text-red-700 no-underline active:scale-95"
+        className="w-full max-w-xl rounded-2xl border-2 border-red-600 bg-white px-6 py-3 text-xl font-bold text-red-700 no-underline shadow-sm active:scale-95"
       >
         <Bi line={TEXT.urgent108} enClass="text-base font-normal" />
       </a>

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getQuestionLog, type AskOutcome, type QuestionLog } from '../lib/api'
+import { Brand } from './CaregiverSetup'
 
 // How each outcome is named and coloured. `referral` stands out because it means
 // the elder was sent to a doctor; `emergency` is red because someone may be in danger.
@@ -41,7 +42,7 @@ function formatTime(iso: string, today: Date): string {
   return sameLocalDay(iso, today) ? timeFormat.format(value) : dateTimeFormat.format(value)
 }
 
-const summaryCard = 'rounded-xl bg-white p-4 shadow-sm'
+const summaryCard = 'rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-100'
 
 export default function CaregiverLog({ profileId }: { profileId: number }) {
   const [entries, setEntries] = useState<QuestionLog[]>([])
@@ -86,8 +87,9 @@ export default function CaregiverLog({ profileId }: { profileId: number }) {
   )
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-8">
+    <main className="min-h-screen bg-linear-to-b from-teal-50 via-white to-amber-50 px-4 py-6">
       <div className="mx-auto max-w-4xl space-y-6">
+        <Brand subtitle="Caregiver" />
         <header className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold text-slate-900">Question log</h1>
@@ -97,7 +99,7 @@ export default function CaregiverLog({ profileId }: { profileId: number }) {
           </div>
           <a
             href="/"
-            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100"
+            className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
           >
             Back to setup
           </a>
@@ -124,7 +126,7 @@ export default function CaregiverLog({ profileId }: { profileId: number }) {
           </p>
         )}
 
-        <section className="rounded-xl bg-white shadow-sm">
+        <section className="rounded-2xl bg-white shadow-sm ring-1 ring-slate-100">
           {loading ? (
             <p className="px-5 py-8 text-base text-slate-600">Loading…</p>
           ) : rows.length === 0 ? (

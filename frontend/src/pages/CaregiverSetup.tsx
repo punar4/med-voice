@@ -107,12 +107,32 @@ function toInput(draft: Draft): MedicineInput {
 }
 
 const inputClass =
-  'mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 focus:border-teal-600 focus:outline-none'
+  'mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-base text-slate-900 focus:border-teal-600 focus:ring-2 focus:ring-teal-100 focus:outline-none'
+// Same look as the elder page: soft teal-to-warm background, white cards.
+const pageClass = 'min-h-screen bg-linear-to-b from-teal-50 via-white to-amber-50 px-4'
+const cardClass = 'rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100'
+
+/** The MedVoice mark shared with the elder page. */
+export function Brand({ subtitle }: { subtitle: string }) {
+  return (
+    <div className="flex items-center gap-2 text-teal-800">
+      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-teal-700 text-white">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className="h-4 w-4">
+          <path d="M10 4h4v6h6v4h-6v6h-4v-6H4v-4h6z" />
+        </svg>
+      </span>
+      <span className="text-xl font-bold tracking-tight">MedVoice</span>
+      <span className="ml-1 rounded-full bg-teal-50 px-2.5 py-0.5 text-xs font-semibold text-teal-800 ring-1 ring-teal-100">
+        {subtitle}
+      </span>
+    </div>
+  )
+}
 const labelClass = 'block text-sm font-medium text-slate-700'
 const primaryButton =
-  'rounded-lg bg-teal-700 px-4 py-2 text-base font-semibold text-white hover:bg-teal-800 disabled:opacity-50'
+  'rounded-xl bg-teal-700 px-4 py-2 text-base font-semibold text-white shadow-sm hover:bg-teal-800 disabled:opacity-50'
 const secondaryButton =
-  'rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100'
+  'rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50'
 
 export default function CaregiverSetup() {
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -230,15 +250,16 @@ export default function CaregiverSetup() {
 
   if (!profile) {
     return (
-      <main className="min-h-screen bg-slate-50 px-4 py-10">
+      <main className={`${pageClass} py-10`}>
         <div className="mx-auto max-w-md">
-          <h1 className="text-2xl font-bold text-slate-900">Prescription voice assistant</h1>
+          <Brand subtitle="Caregiver" />
+          <h1 className="mt-6 text-2xl font-bold text-slate-900">Set up an elder</h1>
           <p className="mt-2 text-base text-slate-600">
             Caregiver setup: enter the elder&apos;s prescription once, then confirm every medicine so it can be
             spoken back in Kannada.
           </p>
 
-          <form onSubmit={handleCreateProfile} className="mt-6 rounded-xl bg-white p-5 shadow-sm">
+          <form onSubmit={handleCreateProfile} className={`mt-6 ${cardClass}`}>
             <label className={labelClass} htmlFor="elder-name">
               Elder&apos;s name
             </label>
@@ -266,16 +287,17 @@ export default function CaregiverSetup() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-8">
+    <main className={`${pageClass} py-6`}>
       <div className="mx-auto max-w-3xl space-y-6">
-        <header className="rounded-xl bg-white p-5 shadow-sm">
+        <Brand subtitle="Caregiver" />
+        <header className={cardClass}>
           <h1 className="text-2xl font-bold text-slate-900">{profile.elder_name}</h1>
           <p className="mt-1 text-sm text-slate-600">
             Language: {profile.language} · Elder link for this profile
           </p>
 
           <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
-            <code className="flex-1 overflow-x-auto rounded-lg bg-slate-100 px-3 py-2 text-sm text-slate-800">
+            <code className="flex-1 overflow-x-auto rounded-xl bg-slate-50 ring-1 ring-slate-100 px-3 py-2 text-sm text-slate-800">
               {elderLink}
             </code>
             <button type="button" onClick={handleCopyLink} className={secondaryButton}>
@@ -293,7 +315,7 @@ export default function CaregiverSetup() {
           </p>
         )}
 
-        <form ref={formRef} onSubmit={handleSubmitMedicine} className="rounded-xl bg-white p-5 shadow-sm">
+        <form ref={formRef} onSubmit={handleSubmitMedicine} className={cardClass}>
           <h2 className="text-lg font-semibold text-slate-900">
             {editingId === null ? 'Add a medicine' : `Editing: ${draft.name}`}
           </h2>
@@ -491,7 +513,7 @@ export default function CaregiverSetup() {
           </div>
         </form>
 
-        <section className="rounded-xl bg-white p-5 shadow-sm">
+        <section className={cardClass}>
           <h2 className="text-lg font-semibold text-slate-900">
             Medicines ({medicines.filter((medicine) => medicine.confirmed).length} confirmed of {medicines.length})
           </h2>
@@ -503,7 +525,7 @@ export default function CaregiverSetup() {
               {medicines.map((medicine) => (
                 <li
                   key={medicine.id}
-                  className={`rounded-lg border p-4 ${
+                  className={`rounded-xl border p-4 ${
                     medicine.confirmed ? 'border-teal-200 bg-teal-50/40' : 'border-amber-300 bg-amber-50'
                   }`}
                 >
@@ -550,7 +572,7 @@ export default function CaregiverSetup() {
                         type="button"
                         disabled={busy}
                         onClick={() => handleConfirm(medicine)}
-                        className="rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-800 disabled:opacity-50"
+                        className="rounded-xl bg-teal-700 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-800 disabled:opacity-50"
                       >
                         Confirm
                       </button>
@@ -562,7 +584,7 @@ export default function CaregiverSetup() {
                       type="button"
                       disabled={busy}
                       onClick={() => handleDelete(medicine)}
-                      className="rounded-lg border border-red-300 bg-white px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+                      className="rounded-xl border border-red-200 bg-white px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
                     >
                       Delete
                     </button>
