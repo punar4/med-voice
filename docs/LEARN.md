@@ -259,3 +259,21 @@
 - Render's free-tier sleep cycle and how a keep-alive ping keeps the demo responsive.
 - Trimming a Docker image (layer order, `--no-install-recommends`, `pip --no-cache-dir`).
 - What autoscaling with several instances does to `create_all` on startup, and when to move to migrations.
+
+## T9 — Keep-alive
+
+**What we built:** A GitHub Actions workflow that pings the deployed `/api/health/db` every ten minutes, or whenever you press "Run workflow". It keeps the free Render instance from going back to sleep between demos, and the same check tells you if the database has stopped answering. The URL is never written in the file; it comes from the `APP_URL` repository variable, so the workflow works for any deployment.
+
+**Files:**
+- `.github/workflows/keepalive.yml` — `schedule` (`*/10 * * * *`) plus `workflow_dispatch`, a skip step when `APP_URL` is empty, then a `curl` ping that retries once after 30 s and fails the run on a non-2xx answer.
+- `README.md` — `## Keep-alive` section: where to click to set the variable, and how to run it manually.
+
+**What I learned:**
+- A cron in GitHub Actions is in UTC and is not a promise. Runs can drift a few minutes at busy times, and a workflow is disabled after 60 days without repo activity; a manual run revives it.
+- Repository *variables* are for non-secret configuration, *secrets* are for keys. The service URL is public, so a variable keeps the YAML readable — and if the variable is missing, `vars.APP_URL` is an empty string rather than an error, which is why the job can skip cleanly.
+- Checking the status code (not just `curl -f`) lets the log say `HTTP 503` instead of a bare exit code, which is the difference between "the service is asleep" and "the database is unreachable".
+- A keep-alive keeps the demo warm but does not make a free tier production-grade: it is still one instance, and a cold start after a real outage is still 30–60 s.
+
+**Later Learn:**
+- Uptime monitors versus cron pings: alerting vs keeping warm.
+- Why `/api/health/db` and not `/api/health` for this job — a 200 from the process does not mean the answers can be read.

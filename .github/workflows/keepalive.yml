@@ -1,0 +1,71 @@
+name: Keep-alive
+
+# Keeps the free-tier Render service from spinning down, and proves the
+# deployed database is still reachable. The URL is never stored in this file:
+# it comes from the repository variable APP_URL.
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: keepalive
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    name: Ping /api/health/db
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Skip when APP_URL is not configured
+        if: vars.APP_URL == ''
+        run: |
+          echo "::notice title=Keep-alive skipped::Repository variable APP_URL is not set, so there is nothing to ping. Set it under Settings → Secrets and variables → Actions → Variables (New repository variable), name APP_URL, value e.g. https://my-app.onrender.com — then run this workflow again."
+
+      - name: Ping health endpoint
+        if: vars.APP_URL != ''
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+        run: |
+          set -u
+
+          case "$APP_URL" in
+            http://*|https://*) ;;
+            *)
+              echo "::error title=Bad APP_URL::APP_URL must start with http:// or https:// (got '$APP_URL')."
+              exit 1
+              ;;
+          esac
+
+          url="${APP_URL%/}/api/health/db"
+          body_file="$(mktemp)"
+          err_file="$(mktemp)"
+
+          for attempt in 1 2; do
+            echo "Attempt $attempt of 2: GET $url"
+            code="$(curl -sS --max-time 90 -o "$body_file" -w '%{http_code}' "$url" 2>"$err_file" || true)"
+            code="${code:-000}"
+            body="$(head -c 500 "$body_file" 2>/dev/null || true)"
+
+            if [ "${code#2}" != "$code" ]; then
+              echo "OK: HTTP $code"
+              [ -n "$body" ] && echo "Response: $body"
+              exit 0
+            fi
+
+            echo "Failed: HTTP $code"
+            [ -s "$err_file" ] && head -c 500 "$err_file"
+            [ -n "$body" ] && echo "Response: $body"
+
+            if [ "$attempt" -eq 1 ]; then
+              echo "Retrying once in 30 s..."
+              sleep 30
+            fi
+          done
+
+          echo "::error title=Health check failed::$url did not return 2xx after 2 attempts. The service may be down, still building, or unable to reach the database."
+          exit 1

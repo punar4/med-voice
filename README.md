@@ -162,10 +162,35 @@ Database: a free Supabase Postgres project.
 
 **Free tier sleeps:** an idle service spins down after a few minutes, and the
 next request takes ~30–60 seconds. Open the URL a minute before any demo, then
-refresh. A keep-alive ping is a later task.
+refresh. The keep-alive workflow below pings the service so it stays awake — see
+[Keep-alive](#keep-alive).
 
 **Data survives redeploys** because it lives in Supabase, not in the container —
 the container's filesystem is thrown away on every deploy.
+
+---
+
+## Keep-alive
+
+`.github/workflows/keepalive.yml` calls `GET <APP_URL>/api/health/db` every 10
+minutes (and on demand), retries once after 30 seconds, and fails the run if the
+endpoint does not answer 2xx. That keeps the free Render instance from falling
+asleep and doubles as an uptime check on the database.
+
+The workflow never contains the URL. It reads the repository variable
+`APP_URL`, so each fork or deployment points at its own service:
+
+1. GitHub repo → **Settings** → **Secrets and variables** → **Actions**.
+2. Open the **Variables** tab → **New repository variable**.
+3. Name `APP_URL`, value your service URL with no trailing slash, e.g.
+   `https://my-app.onrender.com`.
+4. **Actions** → **Keep-alive** → **Run workflow** to test it manually. The run
+   log should print `OK: HTTP 200` and `{"ok":true}`.
+
+If `APP_URL` is not set, the job skips with a notice instead of failing, so a
+fresh clone is never red. Nothing secret is involved — the URL is public — which
+is why it is a variable and not a secret. GitHub's scheduled runs can be delayed
+by a few minutes at busy times, which is fine for a keep-alive.
 
 ---
 
