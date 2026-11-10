@@ -293,12 +293,12 @@ export default function CaregiverSetup() {
         <header className={cardClass}>
           <h1 className="text-2xl font-bold text-slate-900">{profile.elder_name}</h1>
           <p className="mt-1 text-sm text-slate-600">
-            Language: {profile.language} · Elder link for this profile
+            Language: {profile.language === 'kn' ? 'Kannada' : profile.language} · Elder link for this profile
           </p>
 
           <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
             <code className="flex-1 overflow-x-auto rounded-xl bg-slate-50 ring-1 ring-slate-100 px-3 py-2 text-sm text-slate-800">
-              {elderLink}
+              🔗 Elder's page, ready to share
             </code>
             <button type="button" onClick={handleCopyLink} className={secondaryButton}>
               {copied ? 'Copied' : 'Copy link'}

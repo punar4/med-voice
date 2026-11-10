@@ -17,7 +17,7 @@ from app.models import Medicine, Profile
 
 # Renamed in T4 when labels moved to Kannada script, so a fresh seed is created
 # even if the older English seed is already in app.db.
-SEED_ELDER_NAME = "Synthetic Elder (kn)"
+SEED_ELDER_NAME = "Elder (demo)"
 SEED_DAYS_AGO = 5
 
 
