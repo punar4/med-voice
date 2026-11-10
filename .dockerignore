@@ -24,3 +24,6 @@ out.wav
 CHANGES.md
 FREEBUFF_TASKS_v4.md
 T4_INPUTS_v4.md
+
+# Freebuff agent state (local machine only)
+/.freebuff/

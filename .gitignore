@@ -231,3 +231,5 @@ out.wav
 
 # The Python template below ignores every folder named lib/; the frontend source lives in one.
 !frontend/src/lib/
+# Freebuff agent state (local machine only)
+/.freebuff/

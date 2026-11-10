@@ -41,4 +41,5 @@ WORKDIR /app/backend
 EXPOSE 8000
 
 # Shell form so ${PORT} is expanded; Render sets PORT, locally it defaults 8000.
-CMD uvicorn app.main:app --host 0.0.0.0 --port "${PORT:-8000}"
+# `exec` makes uvicorn PID 1, so Render's SIGTERM reaches it and shutdown is clean.
+CMD exec uvicorn app.main:app --host 0.0.0.0 --port "${PORT:-8000}"
