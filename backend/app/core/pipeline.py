@@ -11,7 +11,8 @@ Outcome order, first rule that applies wins:
    asking to change the dose / stop       -> referral
 2. two tablets match equally well        -> clarify_which
    a colour no confirmed tablet has      -> referral
-3. follow-ups within FOLLOWUP_SECONDS of the previous question (section 6b)
+3. follow-ups within FOLLOWUP_SECONDS of the previous question (section 6b),
+   including a tablet-less question right after an answer about a tablet
 4. tablet known, question unknown        -> clarify_question once, then referral
 5. question unknown, tablet unknown      -> referral
 6. question known, tablet unknown        -> clarify_repeat
@@ -151,10 +152,12 @@ def decide(
     ):
         question = recent.intent
 
-    # 6b rule 2: just "ಯಾವಾಗ?" after "what about this tablet?" keeps the tablet.
+    # 6b rule 2: just "ಯಾವಾಗ?" after "what about this tablet?" keeps the tablet,
+    # and so does a short follow-up ("ಎಷ್ಟು ತಗೋಬೇಕು?") right after an answer about
+    # it. Safe because every answer starts by naming the tablet it is about.
     # (With one confirmed medicine, matching already picked it.)
     if medicine is None and question != intent.UNKNOWN and recent is not None:
-        if recent.outcome == CLARIFY_QUESTION and recent.medicine_id is not None:
+        if recent.outcome in (CLARIFY_QUESTION, ANSWERED) and recent.medicine_id is not None:
             medicine = next((m for m in confirmed if m.id == recent.medicine_id), None)
 
     if medicine is not None and question == intent.UNKNOWN:

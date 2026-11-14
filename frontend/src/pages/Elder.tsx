@@ -179,6 +179,10 @@ function ElderScreen({ token, lang, onLang }: { token: string; lang: Lang; onLan
   }
 
   async function start() {
+    // Silence the previous answer first, or the microphone records the phone's
+    // own speaker along with the new question.
+    playerRef.current?.pause()
+    playerRef.current = null
     setProblem(null)
     setAnswer(null)
     setPhase('recording')

@@ -233,3 +233,21 @@ def test_hard_to_swallow_is_not_an_overdose():
     # "ನುಂಗಕ್ಕೆ ಆಗಲ್ಲ" (can't swallow) must not trip the "swallowed too many" pair.
     assert safety.check("ಈ ಮಾತ್ರೆ ತುಂಬಾ ದೊಡ್ಡದು ನುಂಗಕ್ಕೆ ಆಗಲ್ಲ") is False
     assert safety.check("ಅವರು ತುಂಬಾ ಮಾತ್ರೆ ನುಂಗಿಬಿಟ್ರು") is True
+
+
+# --- Live phone test, 14 Nov: follow-up right after an answer --------------------
+
+def test_follow_up_after_an_answer_keeps_the_tablet():
+    follow = decide("ಎಷ್ಟು ತಗೋಬೇಕು?", [WHITE, BIG_WHITE], log("answered", "WHEN", BIG_WHITE.id))
+    assert follow.outcome == "answered"
+    assert follow.medicine is BIG_WHITE
+
+
+def test_old_answer_is_not_carried_over():
+    stale = log("answered", "WHEN", BIG_WHITE.id, seconds_ago=pipeline.FOLLOWUP_SECONDS + 30)
+    assert decide("ಎಷ್ಟು ತಗೋಬೇಕು?", [WHITE, BIG_WHITE], stale).outcome == "clarify_repeat"
+
+
+def test_naming_a_colour_after_an_answer_still_asks_which():
+    follow = decide("ಬಿಳಿ ಮಾತ್ರೆ ಎಷ್ಟು?", [WHITE, BIG_WHITE], log("answered", "WHEN", BIG_WHITE.id))
+    assert follow.outcome == "clarify_which"
