@@ -37,7 +37,7 @@ from .matching import COLOUR_WORDS
 logger = logging.getLogger(__name__)
 
 # A question this soon after the previous one may be a follow-up ("ಯಾವಾಗ?").
-FOLLOWUP_SECONDS = 120
+FOLLOWUP_SECONDS = 300  # 5 minutes: elders may pause; every answer names the tablet
 
 # India has no daylight saving, so a fixed offset is exact (and avoids needing
 # the tzdata package on Windows).

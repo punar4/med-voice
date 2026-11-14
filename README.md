@@ -229,7 +229,7 @@ Real voice clips, transcribed by Gnani Prisma and scored with [`scripts/batch_te
 2. **Confirmed tablets only.** The elder never hears about a tablet the caregiver hasn't checked.
 3. **No AI-written medical text.** Every answer is a fixed Kannada template filled with the caregiver's data.
 4. **Never guesses.** Two matching tablets → "which one?". Unclear question → one ask-back, then "ask your doctor". Unconfirmed tablet, unknown colour, dose change, missed or doubled dose → "ask your doctor".
-5. **Follow-ups**: a short question right after an answer ("ಎಷ್ಟು ತಗೋಬೇಕು?") keeps the same tablet for 2 minutes, and every answer starts by naming the tablet. "The other tablet" is never answered with the last one; the app asks which.
+5. **Follow-ups**: a short question right after an answer ("ಎಷ್ಟು ತಗೋಬೇಕು?") keeps the same tablet for 5 minutes, and every answer starts by naming the tablet. "The other tablet" is never answered with the last one; the app asks which.
 
 ---
 
