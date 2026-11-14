@@ -15,7 +15,7 @@ Built for the Gnani.ai Great Indian AI Internship Challenge, using Gnani
 - **Caregiver page** (set up your own elder): https://med-voice-afia.onrender.com/
 - **Question log** of the demo elder: https://med-voice-afia.onrender.com/log/1
 
-Things to try on the elder page: "ಬಿಳಿ ಮಾತ್ರೆ ಯಾವಾಗ ತಗೋಬೇಕು?" (it asks which one), "ದೊಡ್ಡ ಬಿಳಿ ಮಾತ್ರೆ", then "ಎಷ್ಟು ತಗೋಬೇಕು?" (it remembers the tablet), "ಕಿತ್ತಳೆ ಮಾತ್ರೆ ಯಾವಾಗ?" (it refers you to the doctor), and "ಎದೆ ನೋವು ಆಗ್ತಿದೆ" (emergency screen).
+Things to try on the elder page: "ಇವತ್ತು ಯಾವ ಮಾತ್ರೆ ತಗೋಬೇಕು?" (today's list), "ಹಳದಿ ಮಾತ್ರೆ ಯಾವಾಗ ತಗೋಬೇಕು?", then "ಎಷ್ಟು ತಗೋಬೇಕು?" (it remembers the tablet), "ಕಿತ್ತಳೆ ಮಾತ್ರೆ ಯಾವಾಗ?" (not confirmed, so it refers you to the doctor), and "ಎದೆ ನೋವು ಆಗ್ತಿದೆ" (emergency screen).
 *The free server sleeps when idle, so the first request can take up to a minute.*
 
 ## Gnani.ai models used
