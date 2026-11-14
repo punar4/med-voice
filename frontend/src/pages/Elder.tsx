@@ -34,6 +34,7 @@ const TEXT = {
   startLabel: { kn: 'ಕೇಳೋಕೆ ಒತ್ತಿ', en: 'Start recording' },
   stopLabel: { kn: 'ನಿಲ್ಲಿಸೋಕೆ ಒತ್ತಿ', en: 'Stop recording' },
   youAsked: { kn: 'ನೀವು ಕೇಳಿದ್ದು', en: 'You asked' },
+  spokenInKannada: { kn: '', en: 'The answer is spoken aloud in Kannada.' },
   examplesTitle: { kn: 'ಹೀಗೆ ಕೇಳಬಹುದು', en: 'You can ask' },
   examples: [
     { kn: '“ಬಿಳಿ ಮಾತ್ರೆ ಯಾವಾಗ ತಗೋಬೇಕು?”', en: '“When do I take the white tablet?”' },
@@ -100,7 +101,7 @@ function LangSwitch({ lang, onChange }: { lang: Lang; onChange: (lang: Lang) => 
       type="button"
       onClick={() => onChange(value)}
       aria-pressed={lang === value}
-      className={`rounded-full px-3 py-1 text-sm font-semibold transition-colors ${
+      className={`min-h-10 rounded-full px-4 text-base font-semibold transition-colors ${
         lang === value ? 'bg-[#0C2451] text-white shadow' : 'text-[#0C2451]'
       }`}
     >
@@ -153,6 +154,12 @@ const stopIcon = (
     <rect x="6" y="6" width="12" height="12" rx="2" />
   </svg>
 )
+
+/** The answer in the screen's language. Only the Kannada one is ever spoken. */
+function answerIn(answer: AskResponse, lang: Lang): string {
+  const english = (answer as AskResponse & { answer_text_en?: string }).answer_text_en
+  return lang === 'en' && english ? english : answer.answer_text
+}
 
 function ElderScreen({ token, lang, onLang }: { token: string; lang: Lang; onLang: (lang: Lang) => void }) {
   const [phase, setPhase] = useState<Phase>('idle')
@@ -229,7 +236,7 @@ function ElderScreen({ token, lang, onLang }: { token: string; lang: Lang; onLan
         <a href="tel:108" className="text-[9rem] leading-none font-black tracking-tight text-white no-underline" aria-label={label(TEXT.call108)}>
           108
         </a>
-        <p className="max-w-xl text-3xl leading-snug font-semibold">{answer.answer_text}</p>
+        <p className="max-w-xl text-3xl leading-snug font-semibold">{answerIn(answer, lang)}</p>
         {/* One tap on a phone starts the call. */}
         <a
           href="tel:108"
@@ -310,7 +317,8 @@ function ElderScreen({ token, lang, onLang }: { token: string; lang: Lang; onLan
               </div>
             )}
 
-            <p className="text-[1.75rem] leading-snug font-bold text-slate-900">{answer.answer_text}</p>
+            <p className="text-[1.75rem] leading-snug font-bold text-slate-900">{answerIn(answer, lang)}</p>
+            {lang === 'en' && <p className="text-sm text-slate-500">{TEXT.spokenInKannada.en}</p>}
 
             {answer.audio_error && (
               <p className="text-lg text-slate-600"><Bi line={TEXT.noVoice} enClass="text-base" /></p>
@@ -353,9 +361,9 @@ function ElderScreen({ token, lang, onLang }: { token: string; lang: Lang; onLan
                 <p className="text-sm font-semibold tracking-wide text-slate-500 uppercase">
                   <Bi line={TEXT.examplesTitle} />
                 </p>
-                <ul className="mt-2 flex flex-col items-center gap-2">
+                <ul className="mt-2 flex flex-col items-center gap-1">
                   {TEXT.examples.map((example) => (
-                    <li key={example.en} className="rounded-full bg-white px-4 py-1.5 text-base text-slate-700 shadow-sm ring-1 ring-slate-200">
+                    <li key={example.en} className="text-lg text-slate-600">
                       <Bi line={example} />
                     </li>
                   ))}

@@ -30,7 +30,7 @@ from sqlmodel import Session, select
 from .. import audio
 from ..gnani import GnaniNotConfigured, stt, tts
 from ..models import Medicine, Profile, QuestionLog
-from . import answers, intent, matching, safety
+from . import answers, intent, matching, normalise, safety
 from .matching import COLOUR_WORDS
 
 logger = logging.getLogger(__name__)
@@ -142,12 +142,13 @@ def decide(
     medicine = result.medicine
     recent = _recent(previous, now)
 
-    # 6b rule 3: "ಬಿಳಿ" after "which tablet?" keeps the question asked before.
+    # 6b rule 3: "ಬಿಳಿ" after "which tablet?" (or a tablet name after "say its
+    # colour or name") keeps the question asked before.
     if (
         medicine is not None
         and question == intent.UNKNOWN
         and recent is not None
-        and recent.outcome == CLARIFY_WHICH
+        and recent.outcome in (CLARIFY_WHICH, CLARIFY_REPEAT)
         and recent.intent != intent.UNKNOWN
     ):
         question = recent.intent
@@ -156,7 +157,7 @@ def decide(
     # and so does a short follow-up ("ಎಷ್ಟು ತಗೋಬೇಕು?") right after an answer about
     # it. Safe because every answer starts by naming the tablet it is about.
     # (With one confirmed medicine, matching already picked it.)
-    if medicine is None and question != intent.UNKNOWN and recent is not None:
+    if medicine is None and question != intent.UNKNOWN and recent is not None and not _means_another(transcript):
         if recent.outcome in (CLARIFY_QUESTION, ANSWERED) and recent.medicine_id is not None:
             medicine = next((m for m in confirmed if m.id == recent.medicine_id), None)
 
@@ -173,6 +174,14 @@ def decide(
         return Decision(CLARIFY_REPEAT, "clarify_repeat", question)
 
     return _answer(question, medicine, lang, today)
+
+
+# "the other tablet" must never be answered with the tablet just discussed.
+OTHER_TABLET_WORDS = frozenset({"ಇನ್ನೊಂದು", "ಮತ್ತೊಂದು", "ಬೇರೆ", "ಬೇರೇ", "other", "another", "different"})
+
+
+def _means_another(transcript: str) -> bool:
+    return any(word in OTHER_TABLET_WORDS for word in normalise(transcript).split())
 
 
 def _recent(previous: QuestionLog | None, now: datetime) -> QuestionLog | None:
@@ -206,6 +215,9 @@ class AskResult:
     audio_base64: str | None
     medicine: dict | None
     audio_error: bool = False
+    # The same answer in English, for caregivers and the English screen. Only
+    # the Kannada one is spoken; tablet labels and doses stay as typed.
+    answer_text_en: str = ""
 
 
 def _confirmed(session: Session, profile: Profile) -> list[Medicine]:
@@ -242,11 +254,19 @@ def run(session: Session, profile: Profile, audio_bytes: bytes) -> AskResult:
     if not transcript:
         # No speech, unreadable audio or Prisma down: ask again, and log it.
         decision = Decision(ERROR, "error_try_again", intent.UNKNOWN)
+        decision_en = decision
         transcript = transcript or ""
     else:
-        decision = decide(transcript, medicines, _latest_log(session, profile), lang=lang)
+        previous = _latest_log(session, profile)
+        decision = decide(transcript, medicines, previous, lang=lang)
+        # decide() is pure, so the English run reaches the same outcome.
+        decision_en = decide(transcript, medicines, previous, lang="en")
 
     text = answers.render(decision.answer_key, lang, **decision.fields)
+    try:
+        text_en = answers.render(decision_en.answer_key, "en", **decision_en.fields)
+    except answers.TemplateError:
+        text_en = ""
 
     audio_b64, audio_error = None, False
     try:
@@ -277,4 +297,5 @@ def run(session: Session, profile: Profile, audio_bytes: bytes) -> AskResult:
         audio_base64=audio_b64,
         medicine={"label": medicine.label, "photo_url": medicine.photo_path} if medicine else None,
         audio_error=audio_error,
+        answer_text_en=text_en,
     )

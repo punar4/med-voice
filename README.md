@@ -8,6 +8,23 @@ that confirmed data — it never invents medical advice.
 Built for the Gnani.ai Great Indian AI Internship Challenge, using Gnani
 **Prisma** for speech-to-text and **Timbre** for text-to-speech.
 
+> **Gnani.ai Great Indian AI Internship Challenge, solo entry.** 1-page pitch: [PITCH.md](PITCH.md) · Demo video: <VIDEO_LINK>
+
+## Try it
+- **Elder page** (press the button and ask in Kannada): https://med-voice-afia.onrender.com/elder/FJ8uBWhh2cVQ5CTUUyPK2Q
+- **Caregiver page** (set up your own elder): https://med-voice-afia.onrender.com/
+- **Question log** of the demo elder: https://med-voice-afia.onrender.com/log/1
+
+Things to try on the elder page: "ಬಿಳಿ ಮಾತ್ರೆ ಯಾವಾಗ ತಗೋಬೇಕು?" (it asks which one), "ದೊಡ್ಡ ಬಿಳಿ ಮಾತ್ರೆ", then "ಎಷ್ಟು ತಗೋಬೇಕು?" (it remembers the tablet), "ಕಿತ್ತಳೆ ಮಾತ್ರೆ ಯಾವಾಗ?" (it refers you to the doctor), and "ಎದೆ ನೋವು ಆಗ್ತಿದೆ" (emergency screen).
+*The free server sleeps when idle, so the first request can take up to a minute.*
+
+## Gnani.ai models used
+| Model | Used for | Settings |
+|---|---|---|
+| **Prisma** speech-to-text (`/stt/v3`) | The elder's spoken question | `prisma-v3.0`, `kn-IN`, `format=codemix`; the elder's own medicine words are sent as `keyterms` (falls back to no keyterms on `INVALID_CONTEXT`) |
+| **Timbre** text-to-speech (`/api/v1/tts/inference`) | Speaking every answer | `timbre-v2.5`, voice **Saanvi**, `kn-IN`, speed 0.9 |
+
+
 ---
 
 ## What is in the box
@@ -26,9 +43,7 @@ Built for the Gnani.ai Great Indian AI Internship Challenge, using Gnani
 
 ## Run it locally
 
-Requirements: **Python 3.11+**, **Node 20+**, and **ffmpeg** on your PATH
-(Windows: `winget install ffmpeg`; macOS: `brew install ffmpeg`; Debian/Ubuntu:
-`sudo apt install ffmpeg`).
+Requirements: **Python 3.11+** and **Node 20+**. (ffmpeg is only used inside the Docker image.)
 
 ```bash
 # 1. environment (never commit .env)
@@ -73,7 +88,7 @@ Copy `.env.example` to `.env`. Nothing secret belongs in a tracked file.
 | Name | Required | What it is |
 | --- | --- | --- |
 | `GNANI_API_KEY` | yes, when `MOCK_GNANI=false` | Gnani API key. Read only from the environment, never printed or logged |
-| `GNANI_BASE_URL` | yes, when `MOCK_GNANI=false` | Gnani API base URL (e.g. `https://api.gnani.ai`) |
+| `GNANI_BASE_URL` | yes, when `MOCK_GNANI=false` | Gnani API base URL (e.g. `https://api.vachana.ai`) |
 | `MOCK_GNANI` | no (default `true`) | `true` returns a fixed transcript and silent audio, so the app runs without spending credits. **Must be `false` when deployed** |
 | `DATABASE_URL` | no (default `sqlite:///./app.db`) | `sqlite:///./app.db` locally, `postgresql+psycopg://...` in production |
 | `GNANI_STT_MODEL`, `GNANI_STT_FORMAT`, `GNANI_STT_KEYTERMS` | no | Prisma model (`prisma-v3.0`), input format (`codemix`), and whether to bias recognition with the medicine words |
@@ -195,36 +210,47 @@ by a few minutes at busy times, which is fine for a keep-alive.
 ---
 
 ## Results
+Real voice clips, transcribed by Gnani Prisma and scored with [`scripts/batch_test.py`](scripts/batch_test.py) against expected outcomes:
 
-<!-- TODO(human): fill in after the final batch run. Keep it short and honest. -->
+| Run | Score | Emergencies caught |
+|---|---|---|
+| First run on 38 clips, before any fixes | 25/38 (66%) | 8/8 |
+| Same 38 clips after fixing the general bugs they revealed | 37/38 (97%) | 8/8 |
+| **12 new clips, written and recorded after the fixes** | **12/12** | 2/2 |
 
-- Clips tested: `<n>` (normal speech `<n>`, emergency `<n>`)
-- Overall outcome accuracy: `<x>%`
-- Emergency detection (recall): `<x>%`
-- Matched-tablet accuracy: `<x>%`
-- Typical failure modes: `<...>`
-- Median round trip on the deployed URL: `<n> s`
+- The one miss was a whispered clip. Prisma heard nothing, and the app safely asked the elder to repeat.
+- Fixes were general rules (for example, matching a tablet by a word only its label has, or understanding English describing words), not memorised test sentences.
+- Prisma's transcripts kept the meaning in 37 of the first 38 clips; the first-run failures were in our own matching.
+- **Honest limits:** one speaker so far (the author), and no phone-line (8 kHz) test yet. Later safety-review changes were re-checked on the 12 unseen sentences as text, not re-recorded.
+- 124 automated tests (`cd backend ; python -m pytest -q`).
+
+### Safety design
+1. **Emergency check runs first**: phrases, word pairs (e.g. chest + pain) and fuzzy matching. The result is a red screen with one-tap **108**, and a 108 button is always visible.
+2. **Confirmed tablets only.** The elder never hears about a tablet the caregiver hasn't checked.
+3. **No AI-written medical text.** Every answer is a fixed Kannada template filled with the caregiver's data.
+4. **Never guesses.** Two matching tablets → "which one?". Unclear question → one ask-back, then "ask your doctor". Unconfirmed tablet, unknown colour, dose change, missed or doubled dose → "ask your doctor".
+5. **Follow-ups**: a short question right after an answer ("ಎಷ್ಟು ತಗೋಬೇಕು?") keeps the same tablet for 2 minutes, and every answer starts by naming the tablet. "The other tablet" is never answered with the last one; the app asks which.
 
 ---
 
 ## How I built this
+- **Solo, in about a week**, with two AI assistants:
+  - **Claude**: product and safety design, the task specs, all Kannada text (spoken style), the core matching and safety logic, test design, code review, and UI.
+  - **Freebuff** (DeepSeek): bulk coding from those specs, one task at a time (T0–T9).
+- The task specs are kept in [`docs/build/`](docs/build/); [`docs/LEARN.md`](docs/LEARN.md) has my notes on each step.
+- **Workflow:** spec → Freebuff implements → Claude reviews → tests → real-voice batch test → fix general bugs → re-test on unseen clips. A separate review pass (Claude Fable) looked only for wrong medical answers and missed emergencies.
+- **Stack:** FastAPI + SQLModel, React + TypeScript (Vite, Tailwind), a single Docker service on Render, Supabase Postgres (Singapore), and a GitHub Actions keep-alive. The browser records 16 kHz WAV itself, so no audio conversion is needed on the user's side.
 
-<!-- TODO(human): write this in your own voice. Suggested prompts below. -->
+## Privacy and data
+- Demo data is **synthetic**. Voice recordings are **not stored**; only the text transcript is logged, for the caregiver.
+- Secrets live only in the host's environment variables, and the database's public Data API is switched off.
+- Before real use: consent from the elder and caregiver, data kept in India, deletion on request, and access control, in line with India's **DPDP Act 2023**.
 
-- The problem I wanted to solve: `<...>`
-- What I built first, and what I learned from it: `<...>`
-- The hardest bug and how I found it: `<...>`
-- What I would build next: `<...>`
+## Limits and next steps
+- Tested with one speaker; next is more voices and ages, plus phone-line audio.
+- **No login yet.** The caregiver pages are open to anyone with the link, which is fine for a demo with synthetic data but not for real use.
+- With only one confirmed tablet, any question is taken to be about that tablet.
+- "ಎಲ್ಲಾ ಮಾತ್ರೆ ತಗೊಂಡೆ" ("I took all the tablets") deliberately counts as an emergency: a false alarm is safer than a missed overdose.
+- Next: phone-call access for feature phones, more Indian languages, reminders, and a pharmacist review of the Kannada templates.
 
 ---
-
-## Notes and limits
-
-- Answers come only from caregiver-confirmed fields; when a field was never
-  written down, the app says to ask a doctor or pharmacist instead of guessing.
-- Emergencies are matched by keywords **before** anything else runs, and the
-  answer tells the elder to call 108. It is a safety net, not a diagnosis.
-- One language for now (Kannada). Templates are keyed by intent, so adding
-  another language file needs no logic change.
-- Recordings are processed for the answer and not stored; only the transcript,
-  outcome and answer are kept in the question log.

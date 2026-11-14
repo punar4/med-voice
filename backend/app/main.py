@@ -231,6 +231,7 @@ async def elder_ask(
         "audio_base64": result.audio_base64,
         "medicine": result.medicine,
         "audio_error": result.audio_error,
+        "answer_text_en": result.answer_text_en,
     }
 
 

@@ -251,3 +251,24 @@ def test_old_answer_is_not_carried_over():
 def test_naming_a_colour_after_an_answer_still_asks_which():
     follow = decide("ಬಿಳಿ ಮಾತ್ರೆ ಎಷ್ಟು?", [WHITE, BIG_WHITE], log("answered", "WHEN", BIG_WHITE.id))
     assert follow.outcome == "clarify_which"
+
+
+# --- Final review, 14 Nov ---------------------------------------------------------
+
+def test_tablet_name_after_say_colour_or_name_keeps_the_question():
+    first = decide("ಎಷ್ಟು ತಗೋಬೇಕು?", [WHITE, BIG_WHITE])
+    assert first.outcome == "clarify_repeat"
+    follow = decide("ದೊಡ್ಡ ಬಿಳಿ ಮಾತ್ರೆ", [WHITE, BIG_WHITE], log("clarify_repeat", "HOW_MANY"))
+    assert follow.outcome == "answered" and follow.medicine is BIG_WHITE
+    assert follow.intent == intent.HOW_MANY
+
+
+def test_the_other_tablet_is_never_answered_with_the_last_one():
+    previous = log("answered", "WHEN", BIG_WHITE.id)
+    for text in ("ಇನ್ನೊಂದು ಮಾತ್ರೆ ಯಾವಾಗ?", "ಬೇರೆ ಮಾತ್ರೆ ಎಷ್ಟು ತಗೋಬೇಕು?", "other tablet when?"):
+        assert decide(text, [WHITE, BIG_WHITE], previous).outcome == "clarify_repeat"
+
+
+def test_once_more_is_not_the_other_tablet():
+    follow = decide("ಇನ್ನೊಂದ್ಸಲ ಹೇಳಿ, ಯಾವಾಗ ತಗೋಬೇಕು?", [WHITE, BIG_WHITE], log("answered", "WHEN", BIG_WHITE.id))
+    assert follow.outcome == "answered" and follow.medicine is BIG_WHITE
