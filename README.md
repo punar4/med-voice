@@ -222,7 +222,7 @@ Real voice clips, transcribed by Gnani Prisma and scored with [`scripts/batch_te
 - Fixes were general rules (for example, matching a tablet by a word only its label has, or understanding English describing words), not memorised test sentences.
 - Prisma's transcripts kept the meaning in 37 of the first 38 clips; the first-run failures were in our own matching.
 - **Honest limits:** one speaker so far (the author), and no phone-line (8 kHz) test yet. Later safety-review changes were re-checked on the 12 unseen sentences as text, not re-recorded.
-- 124 automated tests (`cd backend ; python -m pytest -q`).
+- 134 automated tests (`cd backend ; python -m pytest -q`).
 
 ### Safety design
 1. **Emergency check runs first**: phrases, word pairs (e.g. chest + pain) and fuzzy matching. The result is a red screen with one-tap **108**, and a 108 button is always visible.

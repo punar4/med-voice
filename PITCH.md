@@ -6,7 +6,7 @@
 **Try it:** [Elder page](https://med-voice-afia.onrender.com/elder/FJ8uBWhh2cVQ5CTUUyPK2Q) (press and ask in Kannada) · [Caregiver page](https://med-voice-afia.onrender.com/) · [Question log](https://med-voice-afia.onrender.com/log/1)
 
 ## Problem
-Many elders in India take four or five tablets a day but can't read their prescription, which is in English and handwritten. They ask questions like "Is the big white one before food?", "How many days more?" or "Why am I taking this?" in Kannada, often when no one is home. A wrong guess can mean a missed or doubled dose.
+Many elders in India take four or five tablets a day but can't read their prescription, which is in English and handwritten. They ask questions like "Is the yellow one before food?" or "Is the white one after food? "How many days more?" or "Why am I taking this?" in Kannada, often when no one is home. A wrong guess can mean a missed or doubled dose.
 
 ## Solution
 A phone web page with **one big button**. The elder asks in spoken Kannada (or Kanglish) and hears the answer in Kannada.
@@ -29,7 +29,7 @@ Speech → **Gnani Prisma** (`prisma-v3.0`, kn-IN, code-mix, with the elder's me
 | After fixing the general bugs it found | 37/38 (only miss: a whispered clip, which got a safe "please ask again") |
 | **12 unseen clips, recorded after the fixes** | **12/12**, emergencies 2/2 |
 
-All 10 emergency clips were caught, and there are 121 automated tests. Limit: one speaker so far.
+All 10 emergency clips were caught, and there are 134 automated tests. Limit: one speaker so far.
 
 ## Users and impact
 Elders who speak Kannada and live alone or with working children, and the caregivers who manage their medicines. It works on any phone with a browser: no app install and no literacy needed.

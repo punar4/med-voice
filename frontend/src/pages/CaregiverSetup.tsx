@@ -707,7 +707,7 @@ export default function CaregiverSetup() {
                     value={draft.label}
                     onChange={(event) => setDraft({ ...draft, label: event.target.value })}
                     className={inputClass}
-                    placeholder="ಬಿಳಿ ಗುಂಡು ಮಾತ್ರೆ"
+                    placeholder={medicines.length === 0 ? 'ಬಿಳಿ ಮಾತ್ರೆ' : 'ಹಳದಿ ಮಾತ್ರೆ'}
                   />
                 </div>
                 <div>
