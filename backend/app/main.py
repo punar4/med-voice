@@ -168,6 +168,10 @@ def confirm_medicine(medicine_id: int, session: Session = Depends(db.get_session
 def delete_medicine(medicine_id: int, session: Session = Depends(db.get_session)) -> Response:
     """Remove a medicine, e.g. one added by mistake."""
     medicine = _get_medicine(session, medicine_id)
+    # Old questions keep their text but stop pointing at the removed tablet.
+    for entry in session.exec(select(models.QuestionLog).where(models.QuestionLog.medicine_id == medicine_id)):
+        entry.medicine_id = None
+        session.add(entry)    
     session.delete(medicine)
     session.commit()
     return Response(status_code=204)
