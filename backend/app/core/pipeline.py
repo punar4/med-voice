@@ -215,6 +215,15 @@ def decide(
         if recent.outcome in (CLARIFY_QUESTION, ANSWERED) and recent.medicine_id is not None:
             medicine = next((m for m in confirmed if m.id == recent.medicine_id), None)
 
+    if medicine is not None and question == intent.UNKNOWN and medicine.times and _only_names(transcript, medicine):
+        # Just "ಹಳದಿ ಮಾತ್ರೆ" (or "… ಬಗ್ಗೆ ಹೇಳಿ"): a short summary from confirmed fields.
+        return Decision(ANSWERED, "summary", intent.UNKNOWN, medicine, {
+            "label": medicine.label,
+            "times": answers.times_phrase(medicine.times, lang),
+            "food": answers.food_phrase(medicine.food or "any", lang),
+            "dose": medicine.dose,
+        })
+
     if medicine is not None and question == intent.UNKNOWN:
         # 6b rule 1: ask back once; a second unclear question gets a referral.
         if recent is not None and recent.outcome == CLARIFY_QUESTION:
@@ -236,6 +245,23 @@ OTHER_TABLET_WORDS = frozenset({"ಇನ್ನೊಂದು", "ಮತ್ತೊಂ�
 
 def _means_another(transcript: str) -> bool:
     return any(word in OTHER_TABLET_WORDS for word in normalise(transcript).split())
+
+
+# Words that add nothing beyond "tell me about this tablet".
+ABOUT_WORDS = frozenset(normalise(w) for w in (
+    "ಈ", "ಇದು", "ಬಗ್ಗೆ", "ಹೇಳಿ", "ಹೇಳು", "ಸ್ವಲ್ಪ", "ನನ್ನ", "ನಮ್ಮ", "ಅಮ್ಮ", "ಅಜ್ಜಿ",
+    "about", "tell", "me", "the", "my", "this", "please",
+))
+
+
+def _only_names(transcript: str, medicine: Medicine) -> bool:
+    """True if the elder only named the tablet, maybe with "tell me about"."""
+    known = set(ABOUT_WORDS) | set(matching.GENERIC_WORDS)
+    for value in (medicine.label, medicine.name, medicine.color_word, *medicine.aliases):
+        known.update(normalise(value or "").split())
+    known.update(matching.ENGLISH_DESCRIPTORS)
+    words = normalise(transcript).split()
+    return bool(words) and all(word in known for word in words)
 
 
 def _recent(previous: QuestionLog | None, now: datetime) -> QuestionLog | None:

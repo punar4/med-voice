@@ -19,5 +19,6 @@
   "join_or": "ಅಥವಾ",
   "clarify_question": "{label} ಬಗ್ಗೆ ಏನು ಬೇಕು? ಯಾವಾಗ ತಗೋಬೇಕು, ಎಷ್ಟು ತಗೋಬೇಕು, ಅಥವಾ ಊಟಕ್ಕೆ ಮುಂಚೆನಾ ಆದ್ಮೇಲಾ?",
   "schedule_all": "ಇವತ್ತು {plan} ತಗೊಳ್ಳಿ.",
-  "schedule_time": "{time} {labels} ತಗೊಳ್ಳಿ."
+  "schedule_time": "{time} {labels} ತಗೊಳ್ಳಿ.",
+  "summary": "{label}. ಇದನ್ನ {times} {food}, ಒಂದ್ ಸಲಕ್ಕೆ {dose} ತಗೊಳ್ಳಿ."
 }

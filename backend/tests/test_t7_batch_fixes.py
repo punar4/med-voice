@@ -58,8 +58,9 @@ def test_dose_change_always_goes_to_the_doctor():
         assert pipeline.decide(text, list(_meds())).outcome == pipeline.REFERRAL
 
 
-def test_unknown_question_about_short_name_asks_back():
-    assert pipeline.decide("ಗುಂಡು ಮಾತ್ರೆ ಬಗ್ಗೆ ಹೇಳಿ.", list(_meds())).outcome == pipeline.CLARIFY_QUESTION
+def test_tell_me_about_short_name_gives_a_summary():
+    decision = pipeline.decide("ಗುಂಡು ಮಾತ್ರೆ ಬಗ್ಗೆ ಹೇಳಿ.", list(_meds()))
+    assert decision.outcome == pipeline.ANSWERED and decision.answer_key == "summary"
 
 
 def test_missing_purpose_refers():

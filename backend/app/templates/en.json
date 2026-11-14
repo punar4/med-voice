@@ -19,5 +19,6 @@
   "join_or": "or",
   "clarify_question": "What would you like to know about this tablet: when to take it, how many, or before or after food?",
   "schedule_all": "Today, take {plan}.",
-  "schedule_time": "Take {labels} {time}."
+  "schedule_time": "Take {labels} {time}.",
+  "summary": "Take it {times}, {food}, {dose} each time."
 }

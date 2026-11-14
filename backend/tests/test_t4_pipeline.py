@@ -106,7 +106,7 @@ def test_milk_question_asks_back_once_then_refers():
 
 
 def test_follow_up_question_uses_the_tablet_from_the_ask_back():
-    first = decide("ಬಿಳಿ ಮಾತ್ರೆ ಬಗ್ಗೆ", [WHITE, YELLOW])
+    first = decide("ಬಿಳಿ ಮಾತ್ರೆ ಹಾಲಿನ ಜೊತೆ?", [WHITE, YELLOW])
     assert first.outcome == "clarify_question"
     assert first.medicine is WHITE
     follow = decide("ಯಾವಾಗ?", [WHITE, YELLOW], log("clarify_question", "UNKNOWN", WHITE.id))
@@ -272,3 +272,15 @@ def test_the_other_tablet_is_never_answered_with_the_last_one():
 def test_once_more_is_not_the_other_tablet():
     follow = decide("ಇನ್ನೊಂದ್ಸಲ ಹೇಳಿ, ಯಾವಾಗ ತಗೋಬೇಕು?", [WHITE, BIG_WHITE], log("answered", "WHEN", BIG_WHITE.id))
     assert follow.outcome == "answered" and follow.medicine is BIG_WHITE
+
+
+# --- 15 Nov: just naming the tablet gives a summary ---------------------------------
+
+def test_just_the_name_gives_a_summary():
+    decision = decide("ಬಿಳಿ ಮಾತ್ರೆ.", [WHITE, YELLOW])
+    assert decision.outcome == "answered" and decision.answer_key == "summary"
+    assert decision.medicine is WHITE
+
+
+def test_name_plus_unknown_question_still_asks_back():
+    assert decide("ಬಿಳಿ ಮಾತ್ರೆ ಹಾಲಿನ ಜೊತೆ ತಗೋಬಹುದಾ?", [WHITE, YELLOW]).outcome == "clarify_question"
