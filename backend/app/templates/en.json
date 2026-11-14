@@ -1,9 +1,9 @@
 {
-  "when": "{label}. Take it {times}.",
-  "how_many": "{label}. Take {dose} each time.",
-  "food": "{label}. Take it {food}.",
-  "purpose": "{label}. As your doctor wrote, it is {purpose}.",
-  "days_left": "{label}. Take it for {days} more days.",
+  "when": "Take it {times}.",
+  "how_many": "Take {dose} each time.",
+  "food": "Take it {food}.",
+  "purpose": "As your doctor wrote, it is {purpose}.",
+  "days_left": "Take it for {days} more days.",
   "clarify_which": "Which tablet do you mean: {options}?",
   "clarify_repeat": "Sorry, I didn't understand. Please say the tablet's colour or name.",
   "referral": "This isn't on your prescription. Please ask your doctor or pharmacist.",
@@ -17,5 +17,7 @@
   "food_any": "before or after food",
   "join_and": "and",
   "join_or": "or",
-  "clarify_question": "What would you like to know about {label}: when to take it, how many, or before or after food?"
+  "clarify_question": "What would you like to know about this tablet: when to take it, how many, or before or after food?",
+  "schedule_all": "Today, take {plan}.",
+  "schedule_time": "Take {labels} {time}."
 }

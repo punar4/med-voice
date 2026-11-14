@@ -19,6 +19,9 @@ DAYS_LEFT = "DAYS_LEFT"
 # Asking to change the medicine (more, less, stop, skip). Never answered from
 # the prescription: the pipeline always refers these to the doctor.
 CHANGE = "CHANGE"
+# "Which tablets do I take (today / at night)?": answered with a list built
+# only from the confirmed prescription.
+SCHEDULE = "SCHEDULE"
 UNKNOWN = "UNKNOWN"
 
 # Fuzzy fallback (section 6a): loose matching for keywords of 4+ characters.
@@ -64,6 +67,27 @@ INTENT_KEYWORDS = (
             "double",
             "missed",
             "forgot",
+        ),
+    ),
+    (
+        SCHEDULE,
+        (
+            # Kannada
+            "ಯಾವ ಮಾತ್ರೆ",
+            "ಯಾವ್ ಮಾತ್ರೆ",
+            "ಯಾವ ಮಾತ್ರೆಗಳು",
+            "ಯಾವ್ಯಾವ",
+            "ಏನೇನ್ ಮಾತ್ರೆ",
+            "ಏನೇನು ಮಾತ್ರೆ",
+            "ಎಲ್ಲಾ ಮಾತ್ರೆ ಯಾವ",
+            "ಇವತ್ತಿನ ಮಾತ್ರೆ",
+            # Kanglish / English
+            "yaava maatre",
+            "which tablets",
+            "which tablet should i take",
+            "what tablets",
+            "which medicines",
+            "my tablets today",
         ),
     ),
     (
@@ -248,7 +272,7 @@ def _fuzzy(text: str, keywords: tuple[str, ...]) -> bool:
 
 
 def detect(transcript: str) -> str:
-    """Return one of CHANGE, WHEN, HOW_MANY, FOOD, PURPOSE, DAYS_LEFT or UNKNOWN."""
+    """Return one of CHANGE, SCHEDULE, WHEN, HOW_MANY, FOOD, PURPOSE, DAYS_LEFT or UNKNOWN."""
     text = normalise(transcript)
     if not text:
         return UNKNOWN

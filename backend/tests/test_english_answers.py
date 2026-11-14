@@ -16,7 +16,7 @@ def test_every_kannada_template_has_an_english_one():
 def test_english_answer_reads_naturally():
     times = answers.times_phrase(["night", "morning"], "en")
     text = answers.render("when", "en", label="ದೊಡ್ಡ ಬಿಳಿ ಮಾತ್ರೆ", times=times)
-    assert text == "ದೊಡ್ಡ ಬಿಳಿ ಮಾತ್ರೆ. Take it in the morning and at night."
+    assert text == "Take it in the morning and at night."  # the tablet is named in the tag above
 
 
 def test_ask_returns_the_english_answer_too():
@@ -40,4 +40,4 @@ def test_ask_returns_the_english_answer_too():
                 f"/api/elder/{profile['share_token']}/ask", files={"audio": ("q.wav", b"x", "audio/wav")}
             ).json()
     assert body["outcome"] == "answered"
-    assert body["answer_text_en"] == "ಬಿಳಿ ಗುಂಡು ಮಾತ್ರೆ. Take it after food."
+    assert body["answer_text_en"] == "Take it after food."

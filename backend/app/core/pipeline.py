@@ -9,6 +9,7 @@
 Outcome order, first rule that applies wins:
 1. emergency words                       -> emergency (always, before anything else)
    asking to change the dose / stop       -> referral
+   "which tablets today / at night?"      -> list from confirmed tablets only
 2. two tablets match equally well        -> clarify_which
    a colour no confirmed tablet has      -> referral
 3. follow-ups within FOLLOWUP_SECONDS of the previous question (section 6b),
@@ -107,6 +108,53 @@ def _answer(question: str, medicine: Medicine, lang: str, today: date) -> Decisi
     return Decision(ANSWERED, INTENT_TEMPLATE[question], question, medicine, fields)
 
 
+# A symptom means "what should I take FOR this?": never answered from the list.
+SYMPTOM_WORDS = (
+    "ನೋವು", "ನೋವ", "ಜ್ವರ", "ಕೆಮ್ಮು", "ಶೀತ", "ನೆಗಡಿ", "ವಾಂತಿ", "ಭೇದಿ", "ತುರಿಕೆ", "ಸುಸ್ತು",
+    "ತಲೆ ಸುತ್ತು", "ನಿದ್ದೆ ಬರ್ತಿಲ್ಲ", "pain", "fever", "cough", "cold", "headache", "vomit",
+)
+
+# Time words in a question, to the prescription's time slots.
+TIME_SLOTS = {
+    "ಬೆಳಿಗ್ಗೆ": "morning", "ಬೆಳಗ್ಗೆ": "morning", "ಬೆಳಿಗ್ಗೆನೇ": "morning", "morning": "morning",
+    "ಮಧ್ಯಾಹ್ನ": "afternoon", "ಮದ್ಯಾಹ್ನ": "afternoon", "afternoon": "afternoon",
+    "ರಾತ್ರಿ": "night", "ರಾತ್ರೆ": "night", "ಸಂಜೆ": "night", "night": "night", "evening": "night",
+}
+SLOT_ORDER = ("morning", "afternoon", "night")
+
+
+def _still_running(medicine: Medicine, today: date) -> bool:
+    if not medicine.days_total or not medicine.start_date:
+        return True
+    return medicine.days_total - (today - medicine.start_date).days > 0
+
+
+def _schedule(transcript: str, confirmed: list[Medicine], lang: str, today: date) -> Decision:
+    """List today's tablets, built only from confirmed prescription data."""
+    text = normalise(transcript)
+    if any(word in text for word in SYMPTOM_WORDS):
+        return _referral(intent.SCHEDULE)
+    active = [m for m in confirmed if m.times and _still_running(m, today)]
+    asked = [TIME_SLOTS[word] for word in text.split() if word in TIME_SLOTS]
+    if asked:
+        slot = asked[0]
+        due = [m.label for m in active if slot in m.times]
+        if not due:
+            # Nothing confirmed for that time: the doctor or caregiver should confirm.
+            return _referral(intent.SCHEDULE)
+        return Decision(ANSWERED, "schedule_time", intent.SCHEDULE,
+                        fields={"time": answers.word(f"time_{slot}", lang), "labels": answers.join_and(due, lang)})
+    groups = []
+    for slot in SLOT_ORDER:
+        due = [m.label for m in active if slot in m.times]
+        if due:
+            groups.append(f"{answers.word(f'time_{slot}', lang)} {answers.join_and(due, lang)}" if lang != "en"
+                          else f"{answers.join_and(due, lang)} {answers.word(f'time_{slot}', lang)}")
+    if not groups:
+        return _referral(intent.SCHEDULE)
+    return Decision(ANSWERED, "schedule_all", intent.SCHEDULE, fields={"plan": (", " if lang != "en" else "; ").join(groups)})
+
+
 def decide(
     transcript: str,
     medicines: list[Medicine],
@@ -130,6 +178,12 @@ def decide(
     if question == intent.CHANGE:
         # More, less, stop, skip: only the doctor decides, whichever tablet.
         return _referral(question, result.medicine)
+
+    if question == intent.SCHEDULE:
+        if result.medicine is None and not result.ambiguous and not result.unlisted:
+            return _schedule(transcript, confirmed, lang, today)
+        # A tablet was named ("ದೊಡ್ಡ ಮಾತ್ರೆ ಯಾವ ಹೊತ್ತಿಗೆ?"): answer with its times.
+        question = intent.WHEN
 
     if result.ambiguous:
         options = answers.join_or([medicine.label for medicine in result.candidates], lang)
