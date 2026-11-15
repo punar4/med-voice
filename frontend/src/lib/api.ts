@@ -99,6 +99,10 @@ export function createProfile(elderName: string): Promise<{ id: number; share_to
   return request('/profiles', { method: 'POST', body: JSON.stringify({ elder_name: elderName }) })
 }
 
+export function renameProfile(profileId: number, elderName: string): Promise<{ id: number; elder_name: string }> {
+  return request(`/profiles/${profileId}`, { method: 'PATCH', body: JSON.stringify({ elder_name: elderName }) })
+}
+
 export function getProfile(profileId: number): Promise<ProfileResponse> {
   return request(`/profiles/${profileId}`)
 }

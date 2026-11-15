@@ -116,6 +116,23 @@ def create_profile(payload: ProfileCreate, session: Session = Depends(db.get_ses
     return {"id": profile.id, "share_token": profile.share_token}
 
 
+class ProfileRename(BaseModel):
+    """The caregiver fixing or changing the elder's display name."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    elder_name: str = Field(min_length=1, max_length=120)
+
+
+@app.patch("/api/profiles/{profile_id}")
+def rename_profile(profile_id: int, payload: ProfileRename, session: Session = Depends(db.get_session)) -> dict:
+    """Change the elder's name. The elder link stays the same."""
+    profile = _get_profile(session, profile_id)
+    profile.elder_name = payload.elder_name
+    _save(session, profile)
+    return {"id": profile.id, "elder_name": profile.elder_name}
+
+
 @app.get("/api/profiles/{profile_id}")
 def get_profile(profile_id: int, session: Session = Depends(db.get_session)) -> dict:
     """Caregiver view: the profile plus all of its medicines, confirmed or not."""

@@ -5,6 +5,7 @@ import {
   createProfile,
   deleteMedicine,
   getProfile,
+  renameProfile,
   updateMedicine,
   type Food,
   type Medicine,
@@ -28,6 +29,8 @@ const CLANG_KEY = 'medvoice-caregiver-lang'
 
 const T = {
   caregiver: { en: 'Caregiver', kn: 'ಕುಟುಂಬದವರು' },
+  editName: { en: 'Change name', kn: 'ಹೆಸರು ಬದಲಾಯಿಸಿ' },
+  save: { en: 'Save', kn: 'ಉಳಿಸಿ' },
   getStarted: { en: 'Get started', kn: 'ಶುರು ಮಾಡಿ' },
   heroTitle: { en: 'Help an elder with their medicines', kn: 'ಹಿರಿಯರಿಗೆ ಮಾತ್ರೆ ವಿಷಯದಲ್ಲಿ ಸಹಾಯ ಮಾಡಿ' },
   stepAdd: { en: 'Add each tablet once, the way the elder describes it.', kn: 'ಪ್ರತಿ ಮಾತ್ರೆಯನ್ನ ಒಂದ್ಸಲ ಸೇರಿಸಿ, ಹಿರಿಯರು ಹೇಳೋ ಹಾಗೆ.' },
@@ -323,6 +326,7 @@ export default function CaregiverSetup() {
   const [draft, setDraft] = useState<Draft>(emptyDraft)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [busy, setBusy] = useState(false)
+  const [nameDraft, setNameDraft] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [lang, setLang] = useState<CLang>(savedCLang)
@@ -500,8 +504,51 @@ export default function CaregiverSetup() {
             <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-[#3395FF] to-[#0C2451] text-2xl font-bold text-white">
               {profile.elder_name.trim().charAt(0).toUpperCase() || 'E'}
             </span>
-            <div className="min-w-0">
-              <h1 className="truncate text-2xl font-bold text-slate-900">{profile.elder_name}</h1>
+            <div className="min-w-0 flex-1">
+              {nameDraft === null ? (
+                <div className="flex items-center gap-2">
+                  <h1 className="truncate text-2xl font-bold text-slate-900">{profile.elder_name}</h1>
+                  <button
+                    type="button"
+                    onClick={() => setNameDraft(profile.elder_name)}
+                    aria-label={t('editName')}
+                    title={t('editName')}
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100"
+                  >
+                    <Icon name="pencil" className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : (
+                <form
+                  className="flex items-center gap-2"
+                  onSubmit={(event) => {
+                    event.preventDefault()
+                    const name = nameDraft.trim()
+                    if (!name) return
+                    void run(async () => {
+                      await renameProfile(profile.id, name)
+                      setNameDraft(null)
+                      await refresh(profile.id)
+                    })
+                  }}
+                >
+                  <input
+                    autoFocus
+                    required
+                    maxLength={120}
+                    value={nameDraft}
+                    onChange={(event) => setNameDraft(event.target.value)}
+                    aria-label={t('elderName')}
+                    className="min-h-10 w-full min-w-0 rounded-xl border border-slate-200 px-3 text-lg font-semibold text-slate-900 focus:border-blue-600 focus:ring-2 focus:ring-blue-100 focus:outline-none"
+                  />
+                  <button type="submit" disabled={busy} className="min-h-10 shrink-0 rounded-xl bg-[#0C2451] px-3 text-sm font-semibold text-white disabled:opacity-50">
+                    {t('save')}
+                  </button>
+                  <button type="button" onClick={() => setNameDraft(null)} className="min-h-10 shrink-0 rounded-xl px-2 text-sm text-slate-600 hover:bg-slate-100">
+                    {t('cancel')}
+                  </button>
+                </form>
+              )}
               <p className="text-sm text-slate-600">
                 {profile.language === 'kn' ? t('speaksKannada') : profile.language} · {confirmed.length} {t('confirmedCount')}
                 {waiting.length > 0 && <> · {waiting.length} {t('waitingCount')}</>}
