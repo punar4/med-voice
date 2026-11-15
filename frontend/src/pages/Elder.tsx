@@ -155,6 +155,15 @@ const stopIcon = (
   </svg>
 )
 
+type Tablet = { label: string; photo_url: string | null }
+
+/** Every tablet the answer talks about (older servers send only `medicine`). */
+function tabletsIn(answer: AskResponse): Tablet[] {
+  const listed = (answer as AskResponse & { medicines?: Tablet[] }).medicines
+  if (listed && listed.length > 0) return listed
+  return answer.medicine ? [answer.medicine] : []
+}
+
 /** The answer in the screen's language. Only the Kannada one is ever spoken. */
 function answerIn(answer: AskResponse, lang: Lang): string {
   const english = (answer as AskResponse & { answer_text_en?: string }).answer_text_en
@@ -301,20 +310,38 @@ function ElderScreen({ token, lang, onLang }: { token: string; lang: Lang; onLan
               </div>
             )}
 
-            {answer.medicine && (
+            {tabletsIn(answer).length === 1 && (
               <div className="flex flex-col items-center gap-3">
-                {answer.medicine.photo_url && (
+                {tabletsIn(answer)[0].photo_url && (
                   <img
-                    src={answer.medicine.photo_url}
-                    alt={answer.medicine.label}
+                    src={tabletsIn(answer)[0].photo_url ?? undefined}
+                    alt={tabletsIn(answer)[0].label}
                     className="h-28 w-28 rounded-2xl border border-slate-200 bg-white object-contain p-2"
                   />
                 )}
                 <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-1.5 text-lg font-semibold text-[#0C2451] ring-1 ring-blue-100">
                   <span className="h-2.5 w-2.5 rounded-full bg-blue-600" aria-hidden="true" />
-                  {answer.medicine.label}
+                  {tabletsIn(answer)[0].label}
                 </span>
               </div>
+            )}
+
+            {tabletsIn(answer).length > 1 && (
+              // A list or "which one?": every tablet it names, each with its photo.
+              <ul className="grid grid-cols-2 gap-3">
+                {tabletsIn(answer).map((tablet) => (
+                  <li key={tablet.label} className="flex flex-col items-center gap-2 rounded-2xl bg-slate-50 p-3 ring-1 ring-slate-100">
+                    {tablet.photo_url ? (
+                      <img src={tablet.photo_url} alt={tablet.label} className="h-20 w-20 rounded-xl bg-white object-contain p-1.5 ring-1 ring-slate-200" />
+                    ) : (
+                      <span className="flex h-20 w-20 items-center justify-center rounded-xl bg-white ring-1 ring-slate-200" aria-hidden="true">
+                        <span className="h-3 w-3 rounded-full bg-blue-600" />
+                      </span>
+                    )}
+                    <span className="text-base font-semibold text-[#0C2451]">{tablet.label}</span>
+                  </li>
+                ))}
+              </ul>
             )}
 
             <p className="text-[1.75rem] leading-snug font-bold text-slate-900">{answerIn(answer, lang)}</p>

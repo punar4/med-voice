@@ -41,3 +41,30 @@ def test_ask_returns_the_english_answer_too():
             ).json()
     assert body["outcome"] == "answered"
     assert body["answer_text_en"] == "Take it after food."
+
+
+def test_ask_returns_every_tablet_with_its_photo():
+    from unittest.mock import patch
+
+    from fastapi.testclient import TestClient
+
+    from app import config
+    from app.main import app
+
+    with TestClient(app) as client:
+        profile = client.post("/api/profiles", json={"elder_name": "Photo Test"}).json()
+        for label, colour, photo in (("ಬಿಳಿ ಮಾತ್ರೆ", "ಬಿಳಿ", "data:image/jpeg;base64,AAA"), ("ಹಳದಿ ಮಾತ್ರೆ", "ಹಳದಿ", None)):
+            tablet = client.post(
+                f"/api/profiles/{profile['id']}/medicines",
+                json={"name": "X " + colour, "aliases": [], "label": label, "color_word": colour, "dose": "1 ಮಾತ್ರೆ",
+                      "times": ["morning"], "food": "after", "photo_path": photo},
+            ).json()
+            client.post(f"/api/medicines/{tablet['id']}/confirm")
+        url = f"/api/elder/{profile['share_token']}/ask"
+        with patch.object(config, "MOCK_STT_TRANSCRIPT", "ಇವತ್ತು ಯಾವ ಮಾತ್ರೆ ತಗೋಬೇಕು?"):
+            listed = client.post(url, files={"audio": ("q.wav", b"x", "audio/wav")}).json()
+        with patch.object(config, "MOCK_STT_TRANSCRIPT", "ಬಿಳಿ ಮಾತ್ರೆ ಊಟಕ್ಕೆ ಮುಂಚೆನಾ?"):
+            single = client.post(url, files={"audio": ("q.wav", b"x", "audio/wav")}).json()
+    assert [m["label"] for m in listed["medicines"]] == ["ಬಿಳಿ ಮಾತ್ರೆ", "ಹಳದಿ ಮಾತ್ರೆ"]
+    assert listed["medicines"][0]["photo_url"] == "data:image/jpeg;base64,AAA"
+    assert [m["label"] for m in single["medicines"]] == ["ಬಿಳಿ ಮಾತ್ರೆ"]

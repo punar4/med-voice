@@ -72,3 +72,15 @@ def test_emergency_still_wins():
 def test_named_tablet_gets_its_times():
     decision, text = say("ದೊಡ್ಡ ಮಾತ್ರೆ ಯಾವ ಹೊತ್ತಿಗೆ ತಗೋಬೇಕು?", _meds())
     assert decision.outcome == "answered" and decision.medicine.label == "ದೊಡ್ಡ ಬಿಳಿ ಮಾತ್ರೆ"
+
+
+def test_list_answers_name_every_tablet_for_photos():
+    decision = pipeline.decide("ಇವತ್ತು ಯಾವ ಮಾತ್ರೆ ತಗೋಬೇಕು?", _meds())
+    assert [m.label for m in decision.mentioned] == ["ಬಿಳಿ ಗುಂಡು ಮಾತ್ರೆ", "ದೊಡ್ಡ ಬಿಳಿ ಮಾತ್ರೆ"]
+    night = pipeline.decide("ರಾತ್ರಿ ಯಾವ ಮಾತ್ರೆ ತಗೋಬೇಕು?", _meds())
+    assert [m.label for m in night.mentioned] == ["ದೊಡ್ಡ ಬಿಳಿ ಮಾತ್ರೆ"]
+
+
+def test_which_one_names_both_candidates():
+    decision = pipeline.decide("ಬಿಳಿ ಮಾತ್ರೆ ಯಾವಾಗ?", _meds())
+    assert decision.outcome == "clarify_which" and len(decision.mentioned) == 2

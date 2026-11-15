@@ -70,6 +70,9 @@ class Decision:
     intent: str
     medicine: Medicine | None = None
     fields: dict = field(default_factory=dict)
+    # Every tablet the answer names (lists, "which one?"), so the screen can show
+    # each one's photo. Empty means just `medicine`.
+    mentioned: list = field(default_factory=list)
 
 
 def _referral(question: str, medicine: Medicine | None = None) -> Decision:
@@ -138,12 +141,14 @@ def _schedule(transcript: str, confirmed: list[Medicine], lang: str, today: date
     asked = [TIME_SLOTS[word] for word in text.split() if word in TIME_SLOTS]
     if asked:
         slot = asked[0]
-        due = [m.label for m in active if slot in m.times]
-        if not due:
+        due_meds = [m for m in active if slot in m.times]
+        if not due_meds:
             # Nothing confirmed for that time: the doctor or caregiver should confirm.
             return _referral(intent.SCHEDULE)
         return Decision(ANSWERED, "schedule_time", intent.SCHEDULE,
-                        fields={"time": answers.word(f"time_{slot}", lang), "labels": answers.join_and(due, lang)})
+                        fields={"time": answers.word(f"time_{slot}", lang),
+                                "labels": answers.join_and([m.label for m in due_meds], lang)},
+                        mentioned=due_meds)
     groups = []
     for slot in SLOT_ORDER:
         due = [m.label for m in active if slot in m.times]
@@ -152,7 +157,9 @@ def _schedule(transcript: str, confirmed: list[Medicine], lang: str, today: date
                           else f"{answers.join_and(due, lang)} {answers.word(f'time_{slot}', lang)}")
     if not groups:
         return _referral(intent.SCHEDULE)
-    return Decision(ANSWERED, "schedule_all", intent.SCHEDULE, fields={"plan": (", " if lang != "en" else "; ").join(groups)})
+    listed = [m for m in active if any(slot in m.times for slot in SLOT_ORDER)]
+    return Decision(ANSWERED, "schedule_all", intent.SCHEDULE,
+                    fields={"plan": (", " if lang != "en" else "; ").join(groups)}, mentioned=listed)
 
 
 def decide(
@@ -187,7 +194,8 @@ def decide(
 
     if result.ambiguous:
         options = answers.join_or([medicine.label for medicine in result.candidates], lang)
-        return Decision(CLARIFY_WHICH, "clarify_which", question, fields={"options": options})
+        return Decision(CLARIFY_WHICH, "clarify_which", question, fields={"options": options},
+                        mentioned=list(result.candidates))
 
     if result.unlisted:
         # e.g. "the orange tablet" when only a white one is confirmed.
@@ -298,6 +306,8 @@ class AskResult:
     # The same answer in English, for caregivers and the English screen. Only
     # the Kannada one is spoken; tablet labels and doses stay as typed.
     answer_text_en: str = ""
+    # Every tablet the answer talks about, each with its photo.
+    medicines: list = field(default_factory=list)
 
 
 def _confirmed(session: Session, profile: Profile) -> list[Medicine]:
@@ -376,6 +386,10 @@ def run(session: Session, profile: Profile, audio_bytes: bytes) -> AskResult:
         answer_text=text,
         audio_base64=audio_b64,
         medicine={"label": medicine.label, "photo_url": medicine.photo_path} if medicine else None,
+        medicines=[
+            {"label": m.label, "photo_url": m.photo_path}
+            for m in (decision.mentioned or ([medicine] if medicine else []))
+        ],
         audio_error=audio_error,
         answer_text_en=text_en,
     )
