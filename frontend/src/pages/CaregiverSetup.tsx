@@ -93,7 +93,12 @@ const T = {
   fieldStart: { en: 'Start date', kn: 'ಶುರು ಆದ ದಿನ' },
   fieldPurpose: { en: 'Purpose (only if written)', kn: 'ಯಾಕೆ (ಬರೆದಿದ್ರೆ ಮಾತ್ರ)' },
   purposeHint: { en: 'Spoken as "ಇದು …", so write it to fit that sentence.', kn: '"ಇದು …" ಅಂತ ಹೇಳುತ್ತೆ, ಅದಕ್ಕೆ ಸರಿಹೊಂದೋ ಹಾಗೆ ಬರೀರಿ.' },
-  fieldPhoto: { en: 'Photo link', kn: 'ಫೋಟೋ ಲಿಂಕ್' },
+  fieldPhoto: { en: 'Photo of the tablet', kn: 'ಮಾತ್ರೆಯ ಫೋಟೋ' },
+  takePhoto: { en: 'Take or choose a photo', kn: 'ಫೋಟೋ ತೆಗೀರಿ ಅಥವಾ ಆರಿಸಿ' },
+  changePhoto: { en: 'Change photo', kn: 'ಫೋಟೋ ಬದಲಾಯಿಸಿ' },
+  removePhoto: { en: 'Remove photo', kn: 'ಫೋಟೋ ತೆಗೆಯಿರಿ' },
+  photoFailed: { en: 'That photo could not be read. Try another one.', kn: 'ಆ ಫೋಟೋ ಓದೋಕೆ ಆಗ್ಲಿಲ್ಲ. ಬೇರೆ ಫೋಟೋ ಹಾಕಿ.' },
+  photoHint: { en: 'The elder sees this photo next to the answer.', kn: 'ಉತ್ತರದ ಜೊತೆ ಹಿರಿಯರಿಗೆ ಈ ಫೋಟೋ ಕಾಣುತ್ತೆ.' },
   saveMedicine: { en: 'Save medicine', kn: 'ಮಾತ್ರೆ ಉಳಿಸಿ' },
   saveChanges: { en: 'Save changes', kn: 'ಬದಲಾವಣೆ ಉಳಿಸಿ' },
   cancel: { en: 'Cancel', kn: 'ಬೇಡ' },
@@ -296,6 +301,33 @@ const TIME_ICON_COLOURS: Record<TimeOfDay, string> = {
   morning: 'text-amber-500',
   afternoon: 'text-orange-500',
   night: 'text-indigo-500',
+}
+
+// Photos are shrunk in the browser (longest side 480 px, JPEG) and stored with
+// the medicine, so nothing needs a separate file store and they load fast.
+const PHOTO_MAX_SIDE = 480
+
+function shrinkPhoto(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file)
+    const image = new Image()
+    image.onload = () => {
+      const scale = Math.min(1, PHOTO_MAX_SIDE / Math.max(image.width, image.height))
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.round(image.width * scale)
+      canvas.height = Math.round(image.height * scale)
+      const context = canvas.getContext('2d')
+      URL.revokeObjectURL(url)
+      if (!context) return reject(new Error('no canvas'))
+      context.drawImage(image, 0, 0, canvas.width, canvas.height)
+      resolve(canvas.toDataURL('image/jpeg', 0.8))
+    }
+    image.onerror = () => {
+      URL.revokeObjectURL(url)
+      reject(new Error('unreadable image'))
+    }
+    image.src = url
+  })
 }
 
 function daysLeft(medicine: Medicine): number | null {
@@ -650,7 +682,15 @@ export default function CaregiverSetup() {
                     }`}
                   >
                     <div className="flex items-start gap-3">
-                      <Pill colour={medicine.color_word} />
+                      {medicine.photo_path ? (
+                        <img
+                          src={medicine.photo_path}
+                          alt=""
+                          className="h-12 w-12 shrink-0 rounded-2xl bg-white object-contain ring-1 ring-slate-200"
+                        />
+                      ) : (
+                        <Pill colour={medicine.color_word} />
+                      )}
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <p className="text-lg font-bold text-slate-900">{medicine.label}</p>
@@ -918,13 +958,42 @@ export default function CaregiverSetup() {
                   <label className={labelClass} htmlFor="med-photo">
                     {t('fieldPhoto')}
                   </label>
-                  <input
-                    id="med-photo"
-                    value={draft.photo_path}
-                    onChange={(event) => setDraft({ ...draft, photo_path: event.target.value })}
-                    className={inputClass}
-                    placeholder="/photos/amlo.jpg"
-                  />
+                  <div className="mt-1 flex items-center gap-3">
+                    {draft.photo_path && (
+                      <img
+                        src={draft.photo_path}
+                        alt=""
+                        className="h-16 w-16 shrink-0 rounded-xl bg-white object-contain ring-1 ring-slate-200"
+                      />
+                    )}
+                    <div className="flex flex-wrap gap-2">
+                      <label htmlFor="med-photo" className={`${secondaryButton} cursor-pointer`}>
+                        <Icon name="camera" /> {draft.photo_path ? t('changePhoto') : t('takePhoto')}
+                      </label>
+                      {draft.photo_path && (
+                        <button type="button" onClick={() => setDraft({ ...draft, photo_path: '' })} className={secondaryButton}>
+                          {t('removePhoto')}
+                        </button>
+                      )}
+                    </div>
+                    <input
+                      id="med-photo"
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      className="sr-only"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0]
+                        event.target.value = ''
+                        if (!file) return
+                        shrinkPhoto(file).then(
+                          (photo) => setDraft((current) => ({ ...current, photo_path: photo })),
+                          () => setError(t('photoFailed')),
+                        )
+                      }}
+                    />
+                  </div>
+                  <p className="mt-1 text-sm text-slate-500">{t('photoHint')}</p>
                 </div>
               </div>
             </fieldset>
