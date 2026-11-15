@@ -1,14 +1,19 @@
 # MedVoice — medicine answers by voice, in Kannada
 
-An elderly person presses one big button on their phone, asks about **their own**
-medicines in Kannada, and hears the answer read back. A caregiver sets the
-prescription up once and confirms every field; the app only ever answers from
-that confirmed data — it never invents medical advice.
+**Demo video:** https://youtu.be/eC4Pf11Z2jo · **Live app:** https://med-voice-afia.onrender.com/elder/FJ8uBWhh2cVQ5CTUUyPK2Q · **1-page pitch:** [PITCH.md](PITCH.md)
 
-Built for the Gnani.ai Great Indian AI Internship Challenge, using Gnani
-**Prisma** for speech-to-text and **Timbre** for text-to-speech.
+> *Her prescription is in English. She only understands Kannada.*
 
-> **Gnani.ai Great Indian AI Internship Challenge, solo entry.** 1-page pitch: [PITCH.md](PITCH.md) · Demo video: https://youtu.be/eC4Pf11Z2jo
+**Gnani.ai Great Indian AI Internship Challenge, solo entry.** Built on Gnani **Prisma** (speech-to-text) and **Timbre** (text-to-speech).
+
+## The problem
+Many elders in Karnataka manage several tablets from a prescription written in English. They can't read it, so they rely on memory or wait for a family member to explain: when to take which tablet, before or after food, how many days are left. A wrong guess here is a real risk.
+
+## What MedVoice does
+- **The elder presses one big button and asks in spoken Kannada**: "ಹಳದಿ ಮಾತ್ರೆ ಯಾವಾಗ ತಗೋಬೇಕು?" and hears the answer, with the tablet's photo on screen.
+- **The caregiver sets the prescription up once** and confirms every field, then sees every question the elder asked in a log.
+- **It never invents medical advice.** Answers come only from confirmed data, through fixed Kannada sentences. Anything else goes to "ask your doctor".
+- **Emergencies come first.** Words like chest pain show a red screen with one-tap **108**.
 
 ## Try it
 - **Elder page** (press the button and ask in Kannada): https://med-voice-afia.onrender.com/elder/FJ8uBWhh2cVQ5CTUUyPK2Q
@@ -18,14 +23,182 @@ Built for the Gnani.ai Great Indian AI Internship Challenge, using Gnani
 Things to try on the elder page: "ಇವತ್ತು ಯಾವ ಮಾತ್ರೆ ತಗೋಬೇಕು?" (today's list), "ಹಳದಿ ಮಾತ್ರೆ ಯಾವಾಗ ತಗೋಬೇಕು?", then "ಎಷ್ಟು ತಗೋಬೇಕು?" (it remembers the tablet), "ಕಿತ್ತಳೆ ಮಾತ್ರೆ ಯಾವಾಗ?" (not confirmed, so it refers you to the doctor), and "ಎದೆ ನೋವು ಆಗ್ತಿದೆ" (emergency screen).
 *The free server sleeps when idle, so the first request can take up to a minute.*
 
+## Results
+Real voice clips, transcribed by Gnani Prisma and scored with [`scripts/batch_test.py`](scripts/batch_test.py) against expected outcomes:
+
+| Run | Score | Emergencies caught |
+|---|---|---|
+| First run on 38 clips, before any fixes | 25/38 (66%) | 8/8 |
+| Same 38 clips after fixing the general bugs they revealed | 37/38 (97%) | 8/8 |
+| **12 new clips, written and recorded after the fixes** | **12/12** | 2/2 |
+
+- The one miss was a whispered clip. Prisma heard nothing, and the app safely asked the elder to repeat.
+- Fixes were general rules (for example, matching a tablet by a word only its label has, or understanding English describing words), not memorised test sentences.
+- Prisma's transcripts kept the meaning in 37 of the first 38 clips; the first-run failures were in our own matching.
+- **Honest limits:** one speaker so far (the author), and no phone-line (8 kHz) test yet. Later safety-review changes were re-checked on the 12 unseen sentences as text, not re-recorded.
+- 140 automated tests (`cd backend ; python -m pytest -q`).
+
+## Safety design
+1. **Emergency check runs first**: phrases, word pairs (e.g. chest + pain) and fuzzy matching. The result is a red screen with one-tap **108**, and a 108 button is always visible.
+2. **Confirmed tablets only.** The elder never hears about a tablet the caregiver hasn't checked.
+3. **No AI-written medical text.** Every answer is a fixed Kannada template filled with the caregiver's data.
+4. **Never guesses.** Two matching tablets → "which one?". Unclear question → one ask-back, then "ask your doctor". Unconfirmed tablet, unknown colour, dose change, missed or doubled dose → "ask your doctor".
+5. **Follow-ups**: a short question right after an answer ("ಎಷ್ಟು ತಗೋಬೇಕು?") keeps the same tablet for 5 minutes, and every answer starts by naming the tablet. "The other tablet" is never answered with the last one; the app asks which.
+
+## Architecture
+
+### High-level design
+
+```mermaid
+flowchart LR
+    subgraph Phone["Elder's phone (browser)"]
+        E["Elder page<br/>one button · ಕನ್ನಡ / English"]
+    end
+    subgraph Family["Caregiver's browser"]
+        C["Caregiver page<br/>tablets · photos · day plan"]
+        L["Question log"]
+    end
+    subgraph Render["Render: one Docker service (FastAPI + built React app)"]
+        API["REST API"]
+        P["Answer pipeline<br/>safety → intent → matching → template"]
+    end
+    DB[("Supabase Postgres<br/>profiles · medicines · question log")]
+    STT["Gnani Prisma<br/>speech → Kannada text"]
+    TTS["Gnani Timbre<br/>Kannada text → speech"]
+
+    E -- "16 kHz WAV" --> API
+    C -- "add / confirm / photo" --> API
+    L --> API
+    API --> P
+    P -- "audio + keyterms" --> STT
+    P -- "fixed Kannada sentence" --> TTS
+    API <--> DB
+    API -- "answer text + voice + tablet photos" --> E
+```
+
+- **One service, one origin**: the API and the React app are served together over HTTPS, which the browser microphone requires.
+- **The data lives in Supabase**, not in the container, so it survives redeploys. A GitHub Actions job pings `/api/health/db` to keep the free server awake.
+- **Voice is never stored.** Only the transcript, the outcome and the answer go into the caregiver's log.
+
+### One question, end to end
+
+```mermaid
+sequenceDiagram
+    actor Elder
+    participant UI as Elder page
+    participant API as FastAPI /ask
+    participant Prisma as Gnani Prisma
+    participant D as decide()
+    participant Timbre as Gnani Timbre
+    participant DB as Postgres
+
+    Elder->>UI: press button, speak
+    UI->>UI: record, convert to 16 kHz mono WAV
+    UI->>API: POST /api/elder/{token}/ask (audio)
+    API->>DB: confirmed tablets + last question
+    API->>Prisma: audio + keyterms (the elder's own tablet words)
+    Prisma-->>API: Kannada transcript
+    API->>D: transcript, tablets, last question
+    D-->>API: outcome + template + fields (+ tablets named)
+    API->>Timbre: filled Kannada sentence
+    Timbre-->>API: speech (WAV)
+    API->>DB: log question, outcome, answer
+    API-->>UI: text (kn + en), voice, tablet photos
+    UI-->>Elder: shows the answer and plays it
+```
+
+### Low-level design: how `decide()` picks an answer
+
+`backend/app/core/pipeline.py`. It's a pure function with no network or database, so every rule is unit-tested. The first rule that applies wins:
+
+| # | Check | Outcome |
+|---|---|---|
+| 1 | Emergency words / word pairs / fuzzy (`safety.py`) | **emergency**: red screen, one-tap 108 |
+| 2 | Asking to change, stop, skip or double a dose; missed dose | **referral**: "ask your doctor" |
+| 3 | "Which tablets today / at night?" | **answered**: list built from confirmed tablets only; a symptom or nothing scheduled → referral |
+| 4 | Two tablets match equally ("ಬಿಳಿ ಮಾತ್ರೆ" when two are white) | **clarify_which**: "which one?" with both photos |
+| 5 | A colour no confirmed tablet has | **referral** |
+| 6 | Follow-up within 5 minutes of the last answer (same tablet, unless "the other one") | carries the tablet or question forward |
+| 7 | Only the tablet's name ("ಹಳದಿ ಮಾತ್ರೆ") | **answered**: short summary (when, food, dose) |
+| 8 | Tablet known, question unclear | **clarify_question** once, then referral |
+| 9 | Question known, tablet unknown | **clarify_repeat**: "say its colour or name" |
+| 10 | Both known | **answered** from a fixed template, or referral if the caregiver left that field empty or the course is over |
+
+| Module | Responsibility |
+|---|---|
+| `core/safety.py` | Emergency detection: spoken-Kannada phrases, word pairs, fuzzy match (a short transcript is never matched as a fragment of a longer phrase) |
+| `core/intent.py` | Question type: CHANGE, SCHEDULE, DAYS_LEFT, FOOD, WHEN, HOW_MANY, PURPOSE, by keyword priority, then fuzzy |
+| `core/matching.py` | Which tablet: generic words removed, English describing words translated, a word only one label has, a colour tie-break, unconfirmed colours flagged |
+| `core/answers.py` + `templates/kn.json`, `en.json` | Fill fixed sentences; a missing placeholder raises an error instead of inventing text |
+| `core/pipeline.py` | `decide()` (rules) + `run()` (Prisma → decide → Timbre → log) |
+| `audio.py`, `gnani/stt.py`, `gnani/tts.py` | Audio format checks, Prisma with keyterms (retries without them if rejected), Timbre |
+| `main.py` | REST routes, health checks, serving the React build |
+
+### Data model
+
+```mermaid
+erDiagram
+    PROFILE ||--o{ MEDICINE : has
+    PROFILE ||--o{ QUESTION_LOG : records
+    MEDICINE |o--o{ QUESTION_LOG : "is about"
+    PROFILE {
+        int id
+        string elder_name
+        string language
+        string share_token "private elder link"
+    }
+    MEDICINE {
+        int id
+        string label "how the elder says it"
+        string name "on the prescription"
+        string color_word
+        string dose
+        list times "morning / afternoon / night"
+        string food "before / after / any"
+        int days_total
+        date start_date
+        string purpose "only if written"
+        string photo_path "shrunk JPEG"
+        bool confirmed "hidden from the elder until true"
+    }
+    QUESTION_LOG {
+        int id
+        datetime created_at
+        string transcript
+        string intent
+        string outcome
+        string answer_text
+    }
+```
+
+### Main API routes
+| Method | Route | Used by |
+|---|---|---|
+| POST / GET / PATCH | `/api/profiles`, `/api/profiles/{id}` | Caregiver: create, view, rename the elder |
+| POST / PUT / DELETE | `/api/profiles/{id}/medicines`, `/api/medicines/{id}` | Caregiver: add, edit, remove tablets |
+| POST | `/api/medicines/{id}/confirm` | Caregiver: confirm a tablet |
+| GET | `/api/profiles/{id}/log` | Caregiver: question log |
+| GET | `/api/elder/{token}` | Elder page: confirmed tablets only |
+| POST | `/api/elder/{token}/ask` | Elder: audio in → answer, voice, photos out |
+| GET | `/api/health`, `/api/health/db` | Render health check, keep-alive |
+
 ## Gnani.ai models used
 | Model | Used for | Settings |
 |---|---|---|
 | **Prisma** speech-to-text (`/stt/v3`) | The elder's spoken question | `prisma-v3.0`, `kn-IN`, `format=codemix`; the elder's own medicine words are sent as `keyterms` (falls back to no keyterms on `INVALID_CONTEXT`) |
 | **Timbre** text-to-speech (`/api/v1/tts/inference`) | Speaking every answer | `timbre-v2.5`, voice **Saanvi**, `kn-IN`, speed 0.9 |
 
+## How I built this
+- **Solo, in about a week**, with two AI assistants:
+  - **Claude**: product and safety design, the task specs, all Kannada text (spoken style), the core matching and safety logic, test design, code review, and UI.
+  - **Freebuff** (DeepSeek): bulk coding from those specs, one task at a time (T0–T9).
+- The task specs are kept in [`docs/build/`](docs/build/); [`docs/LEARN.md`](docs/LEARN.md) has my notes on each step.
+- **Workflow:** spec → Freebuff implements → Claude reviews → tests → real-voice batch test → fix general bugs → re-test on unseen clips. A separate review pass (Claude Fable) looked only for wrong medical answers and missed emergencies.
+- **Stack:** FastAPI + SQLModel, React + TypeScript (Vite, Tailwind), a single Docker service on Render, Supabase Postgres (Singapore), and a GitHub Actions keep-alive. The browser records 16 kHz WAV itself, so no audio conversion is needed on the user's side.
 
 ---
+
+# For developers
 
 ## What is in the box
 
@@ -38,8 +211,6 @@ Things to try on the elder page: "ಇವತ್ತು ಯಾವ ಮಾತ್ರ�
 | `scripts/batch_test.py` | Runs a folder of recorded clips through `/ask` and scores them against `test_audio/expected.csv` |
 | `scripts/to_8khz.sh` | Downsamples a folder of clips to 8 kHz mono WAV (phone quality) |
 | `Dockerfile` | Multi-stage build: Node builds the frontend, Python + ffmpeg serves API and UI |
-
----
 
 ## Run it locally
 
@@ -79,8 +250,6 @@ cd ../backend && uvicorn app.main:app
 Now `http://127.0.0.1:8000` serves the app itself, and refreshing
 `/elder/<token>` still works (unknown non-API paths return `index.html`).
 
----
-
 ## Environment variables
 
 Copy `.env.example` to `.env`. Nothing secret belongs in a tracked file.
@@ -97,8 +266,6 @@ Copy `.env.example` to `.env`. Nothing secret belongs in a tracked file.
 
 The database code is identical for SQLite and Postgres — only `DATABASE_URL`
 changes, and tables are created on startup in both cases.
-
----
 
 ## Tests
 
@@ -136,8 +303,6 @@ Clips in other formats can be normalised first (needs ffmpeg):
 ```bash
 bash scripts/to_8khz.sh test_audio test_audio_8khz
 ```
-
----
 
 ## Deploy to Render
 
@@ -183,8 +348,6 @@ refresh. The keep-alive workflow below pings the service so it stays awake — s
 **Data survives redeploys** because it lives in Supabase, not in the container —
 the container's filesystem is thrown away on every deploy.
 
----
-
 ## Keep-alive
 
 `.github/workflows/keepalive.yml` calls `GET <APP_URL>/api/health/db` every 10
@@ -209,38 +372,6 @@ by a few minutes at busy times, which is fine for a keep-alive.
 
 ---
 
-## Results
-Real voice clips, transcribed by Gnani Prisma and scored with [`scripts/batch_test.py`](scripts/batch_test.py) against expected outcomes:
-
-| Run | Score | Emergencies caught |
-|---|---|---|
-| First run on 38 clips, before any fixes | 25/38 (66%) | 8/8 |
-| Same 38 clips after fixing the general bugs they revealed | 37/38 (97%) | 8/8 |
-| **12 new clips, written and recorded after the fixes** | **12/12** | 2/2 |
-
-- The one miss was a whispered clip. Prisma heard nothing, and the app safely asked the elder to repeat.
-- Fixes were general rules (for example, matching a tablet by a word only its label has, or understanding English describing words), not memorised test sentences.
-- Prisma's transcripts kept the meaning in 37 of the first 38 clips; the first-run failures were in our own matching.
-- **Honest limits:** one speaker so far (the author), and no phone-line (8 kHz) test yet. Later safety-review changes were re-checked on the 12 unseen sentences as text, not re-recorded.
-- 140 automated tests (`cd backend ; python -m pytest -q`).
-
-### Safety design
-1. **Emergency check runs first**: phrases, word pairs (e.g. chest + pain) and fuzzy matching. The result is a red screen with one-tap **108**, and a 108 button is always visible.
-2. **Confirmed tablets only.** The elder never hears about a tablet the caregiver hasn't checked.
-3. **No AI-written medical text.** Every answer is a fixed Kannada template filled with the caregiver's data.
-4. **Never guesses.** Two matching tablets → "which one?". Unclear question → one ask-back, then "ask your doctor". Unconfirmed tablet, unknown colour, dose change, missed or doubled dose → "ask your doctor".
-5. **Follow-ups**: a short question right after an answer ("ಎಷ್ಟು ತಗೋಬೇಕು?") keeps the same tablet for 5 minutes, and every answer starts by naming the tablet. "The other tablet" is never answered with the last one; the app asks which.
-
----
-
-## How I built this
-- **Solo, in about a week**, with two AI assistants:
-  - **Claude**: product and safety design, the task specs, all Kannada text (spoken style), the core matching and safety logic, test design, code review, and UI.
-  - **Freebuff** (DeepSeek): bulk coding from those specs, one task at a time (T0–T9).
-- The task specs are kept in [`docs/build/`](docs/build/); [`docs/LEARN.md`](docs/LEARN.md) has my notes on each step.
-- **Workflow:** spec → Freebuff implements → Claude reviews → tests → real-voice batch test → fix general bugs → re-test on unseen clips. A separate review pass (Claude Fable) looked only for wrong medical answers and missed emergencies.
-- **Stack:** FastAPI + SQLModel, React + TypeScript (Vite, Tailwind), a single Docker service on Render, Supabase Postgres (Singapore), and a GitHub Actions keep-alive. The browser records 16 kHz WAV itself, so no audio conversion is needed on the user's side.
-
 ## Privacy and data
 - Demo data is **synthetic**. Voice recordings are **not stored**; only the text transcript is logged, for the caregiver.
 - Secrets live only in the host's environment variables, and the database's public Data API is switched off.
@@ -252,5 +383,3 @@ Real voice clips, transcribed by Gnani Prisma and scored with [`scripts/batch_te
 - With only one confirmed tablet, any question is taken to be about that tablet.
 - "ಎಲ್ಲಾ ಮಾತ್ರೆ ತಗೊಂಡೆ" ("I took all the tablets") deliberately counts as an emergency: a false alarm is safer than a missed overdose.
 - Next: phone-call access for feature phones, more Indian languages, reminders, and a pharmacist review of the Kannada templates.
-
----
