@@ -5,6 +5,8 @@
 
 **Try it:** [Elder page](https://med-voice-afia.onrender.com/elder/FJ8uBWhh2cVQ5CTUUyPK2Q) (press and ask in Kannada) · [Caregiver page](https://med-voice-afia.onrender.com/) · [Question log](https://med-voice-afia.onrender.com/log/1)
 
+*Tip: ask one question slowly and clearly, in a quiet room. The first request can take up to a minute while the free server wakes up.*
+
 ## Problem
 Many elders in India take four or five tablets a day but can't read their prescription, which is in English and handwritten. They ask questions like "Is the yellow one before food?" or "Is the white one after food? "How many days more?" or "Why am I taking this?" in Kannada, often when no one is home. A wrong guess can mean a missed or doubled dose.
 
