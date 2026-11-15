@@ -8,7 +8,7 @@ that confirmed data — it never invents medical advice.
 Built for the Gnani.ai Great Indian AI Internship Challenge, using Gnani
 **Prisma** for speech-to-text and **Timbre** for text-to-speech.
 
-> **Gnani.ai Great Indian AI Internship Challenge, solo entry.** 1-page pitch: [PITCH.md](PITCH.md) · Demo video: <VIDEO_LINK>
+> **Gnani.ai Great Indian AI Internship Challenge, solo entry.** 1-page pitch: [PITCH.md](PITCH.md) · Demo video: https://youtu.be/eC4Pf11Z2jo
 
 ## Try it
 - **Elder page** (press the button and ask in Kannada): https://med-voice-afia.onrender.com/elder/FJ8uBWhh2cVQ5CTUUyPK2Q

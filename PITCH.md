@@ -1,7 +1,7 @@
 # MedVoice: medicine questions, answered in spoken Kannada
 
 **Solo entry, Gnani.ai Great Indian AI Internship Challenge** · Punarnava Viswanath, BMS College of Engineering, Bengaluru
-**Code:** https://github.com/punar4/med-voice · **Demo video:** <VIDEO_LINK>
+**Code:** https://github.com/punar4/med-voice · **Demo video:** https://youtu.be/eC4Pf11Z2jo
 
 **Try it:** [Elder page](https://med-voice-afia.onrender.com/elder/FJ8uBWhh2cVQ5CTUUyPK2Q) (press and ask in Kannada) · [Caregiver page](https://med-voice-afia.onrender.com/) · [Question log](https://med-voice-afia.onrender.com/log/1)
 
