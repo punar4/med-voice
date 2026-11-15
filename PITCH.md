@@ -29,7 +29,7 @@ Speech → **Gnani Prisma** (`prisma-v3.0`, kn-IN, code-mix, with the elder's me
 | After fixing the general bugs it found | 37/38 (only miss: a whispered clip, which got a safe "please ask again") |
 | **12 unseen clips, recorded after the fixes** | **12/12**, emergencies 2/2 |
 
-All 10 emergency clips were caught, and there are 137 automated tests. Limit: one speaker so far.
+All 10 emergency clips were caught, and there are 140 automated tests. Limit: one speaker so far.
 
 ## Users and impact
 Elders who speak Kannada and live alone or with working children, and the caregivers who manage their medicines. It works on any phone with a browser: no app install and no literacy needed.
